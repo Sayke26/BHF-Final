@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BHF Group - Enterprise Workspace Infrastructure Monitor</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+</head>
+<body>
+
+    <header class="main-header">
+        <div class="logo-container">
+            <div class="logo-icon">
+                <img src="images/BHFlogo.jpg" alt="BHF Logo" style="width: 100%; height: auto;">
+            </div>
+            <div>
+                <h1>BHF GROUP</h1>
+                <p>IT Infrastructure Performance Portal</p>
+            </div>
+        </div>
+        <nav class="nav-links">
+            <button id="legacyAdminNavBtn" onclick="handleAdministrationTap()" class="admin-nav-btn"><i class="fas fa-archive"></i> Administration</button>
+        </nav>
+    </header>
+
+    <!-- Left side menu toggle + panel -->
+    <div id="sideMenuToggle" aria-label="Open menu" title="Menu" role="button" onclick="toggleSideMenu()">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+    </div>
+    <nav id="sideMenu" class="side-menu hidden" aria-hidden="true">
+        <button id="homeNavBtnSide" class="side-nav-btn" onclick="goHome(); closeSideMenu();"><i class="fas fa-home"></i> Home</button>
+        <button id="branchesNavBtnSide" class="side-nav-btn" onclick="showBranchesPage(); closeSideMenu();"><i class="fas fa-building"></i> Branches</button>
+        <button id="analysisNavBtnSide" class="side-nav-btn" onclick="showAnalysisPage(); closeSideMenu();"><i class="fas fa-chart-line"></i> Analysis</button>
+        <button id="itTrackerNavBtnSide" class="side-nav-btn" onclick="showITTrackerPage(); closeSideMenu();"><i class="fas fa-user-friends"></i> IT Tracker</button>
+        <button id="configNavBtnSide" class="side-nav-btn" onclick="promptAdminAccess(); closeSideMenu();"><i class="fas fa-cog"></i> Computer Monitoring</button>
+        <button id="inventoryReportNavBtnSide" class="side-nav-btn" onclick="showInventoryReportPage(); closeSideMenu();"><i class="fas fa-boxes"></i> Inventory Report</button>
+        <button id="logoutBtnSide" class="side-nav-btn" style="background:#dc2626; color:white; border-color:#dc2626;" onclick="logoutAdmin(); closeSideMenu();"><i class="fas fa-sign-out-alt"></i> Log-out</button>
+    </nav>
+
+    <main class="content-bound">
+
+        <section id="overallPage" class="page hidden">
+            <div class="section-title-bar">
+                <div>
+                    <h2>Consolidated Group Network Summary</h2>
+                    <p>Holistic health telemetry distributions compiled across all regional facility profiles.</p>
+                </div>
+            </div>
+
+            <div class="metrics-card-grid structural-five-column">
+                <div class="metric-card card-blue clickable" onclick="showMetricSummary('branches')">
+                    <div class="card-icon"><i class="fas fa-network-wired"></i></div>
+                    <div class="card-info"><h4 id="overallBranches">0</h4><p>Monitored Properties</p></div>
+                </div>
+                <div class="metric-card card-dark clickable" onclick="showMetricSummary('pcs')">
+                    <div class="card-icon"><i class="fas fa-server"></i></div>
+                    <div class="card-info"><h4 id="overallPCs">0</h4><p>Aggregated Global Terminals</p></div>
+                </div>
+                <div class="metric-card card-green clickable" onclick="showMetricSummary('healthy')">
+                    <div class="card-icon"><i class="fas fa-shield-alt"></i></div>
+                    <div class="card-info"><h4 id="overallHealthy">0</h4><p>Stable Fleet Operations</p></div>
+                </div>
+                <div class="metric-card card-orange clickable" onclick="showMetricSummary('maintenance')">
+                    <div class="card-icon"><i class="fas fa-tools-heading"></i></div>
+                    <div class="card-info"><h4 id="overallMaintenance">0</h4><p>Needs Maintenance</p></div>
+                </div>
+                <div class="metric-card card-red clickable" onclick="showMetricSummary('issues')">
+                    <div class="card-icon"><i class="fas fa-tools"></i></div>
+                    <div class="card-info"><h4 id="overallIssues">0</h4><p>Total Flagged Incidents</p></div>
+                </div>
+            </div>
+
+            <div class="announcement-summary-grid">
+                <div id="immediateActionContainer" class="action-summary-container immediate-action-banner">
+                    <h3><i class="fas fa-exclamation-circle text-critical"></i> Immediate Action Required</h3>
+                    <div id="immediateActionContent" style="margin-top: 20px;"></div>
+                </div>
+                <div id="broadcastAnnouncementBox" class="broadcast-announcement-box">
+                    <h3><i class="fas fa-bullhorn"></i> Latest Broadcasts</h3>
+                    <div id="broadcastAnnouncementContent" class="broadcast-announcement-content">Loading broadcast updates...</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="homePage" class="page active">
+            <div class="section-title-bar">
+                <div>
+                    <h2>IT Team Profiles</h2>
+                    <p>Click a team card to open the tracker and keep location + activity status current.</p>
+                </div>
+            </div>
+
+            <div id="profileGrid" class="profile-grid"></div>
+
+            <div class="home-hero">
+                <div id="bhfMapContainer" class="hero-visual hero-map" style="position: relative; z-index: 10;"></div>
+            </div>
+
+            <div class="branch-map-toolbar">
+                <div class="branch-search-box">
+                    <label for="branchSearchInput"><i class="fas fa-search"></i> Search branches</label>
+                    <input id="branchSearchInput" type="search" placeholder="Search branch name or address..." oninput="filterHomeBranches(this.value)" />
+                </div>
+                <div class="branch-map-legend">
+                    <div><span class="legend-chip branch-chip"></span>Branch Site</div>
+                    <div><span class="legend-chip staff-chip"></span>Live IT Team</div>
+                </div>
+            </div>
+            <div id="homeBranchList" class="home-branch-list"></div>
+
+            <div class="home-stats-grid">
+                <div class="home-stat-card">
+                    <div class="stat-icon bg-blue"><i class="fas fa-user-cog"></i></div>
+                    <div class="stat-copy">
+                        <h4 id="homeStaffCount">3 IT Specialists</h4>
+                        <p>Staff deployed across key branches and operations.</p>
+                    </div>
+                </div>
+                <div class="home-stat-card">
+                    <div class="stat-icon bg-green"><i class="fas fa-map-marker-alt"></i></div>
+                    <div class="stat-copy">
+                        <h4>12 Active Branches</h4>
+                        <p>Locations monitored for health, maintenance and support performance.</p>
+                    </div>
+                </div>
+                <div class="home-stat-card">
+                    <div class="stat-icon bg-yellow"><i class="fas fa-comments-alt"></i></div>
+                    <div class="stat-copy">
+                        <h4>Live Task Updates</h4>
+                        <p>Each tracker update appears immediately on the home dashboard.</p>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="section-title-bar" style="margin-top:40px;">
+                <div>
+                    <h2>Featured Branches</h2>
+                    <p>A selection of active branch destinations supported by the IT team.</p>
+                </div>
+            </div>
+
+            <div class="branch-showcase-grid">
+                <div class="branch-card" style="background-image:url('https://i.pinimg.com/736x/b9/92/ec/b992ecfad277b180c7c3f1067d4073f6.jpg');">
+                    <div class="branch-label">Lending</div>
+                    <h3>BHF LENDING</h3>
+                </div>
+                <div class="branch-card" style="background-image:url('https://i.pinimg.com/736x/62/55/aa/6255aa0f2d262aa97fb118d44d467061.jpg');">
+                    <div class="branch-label">Hospitality</div>
+                    <h3>Bloomfield Hotel</h3>
+                </div>
+                <div class="branch-card" style="background-image:url('https://i.pinimg.com/736x/90/60/1a/90601aa9f460275b5158fbbd860188cb.jpg');">
+                    <div class="branch-label">Food & Beverage</div>
+                    <h3>Cafe Leche</h3>
+                </div>
+                <div class="branch-card" style="background-image:url('images/pawnshop-logo.svg'); background-size: cover; background-position: center;">
+                    <div class="branch-label">Retail</div>
+                    <h3>Pawnshop Bonifacio</h3>
+                </div>
+                <div class="branch-card" style="background-image:url('images/bonifacio217-logo.svg'); background-size: cover; background-position: center;">
+                    <div class="branch-label">Residences</div>
+                    <h3>217 Bonifacio Residences</h3>
+                </div>
+            </div>
+        </section>
+
+        <section id="branchesPage" class="page hidden">
+            <div class="hero-banner">
+                <h2>Branch Workstation Infrastructure</h2>
+                <p>Real-time terminal telemetry diagnostic streams and active site asset registries across the regional infrastructure cluster.</p>
+            </div>
+            <div class="split-layout">
+                <div class="main-column">
+                    <h3>Branch Workstation Infrastructure</h3>
+                    <p style="color:#64748b; margin-top:-10px; margin-bottom:20px; font-size:14px;">
+                        Select any branch profile below to actively monitor computer terminals, health states, tracking logs, and thermodynamic metrics.
+                    </p>
+                    <div class="branch-grid" id="branchGrid"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="dashboardPage" class="page hidden">
+            <div class="section-title-bar">
+                <div>
+                    <span class="breadcrumb-tag">Localized Infrastructure Sheet</span>
+                    <h2 id="selectedBranchTitle">Branch Workspace Diagnostics</h2>
+                </div>
+                <button class="edit-btn" style="background:#475569; color: white;" onclick="showOverallSummary()"><i class="fas fa-chevron-left"></i> Back to Home</button>
+            </div>
+
+            <div class="metrics-card-grid">
+                <div class="metric-card card-blue">
+                    <div class="card-icon"><i class="fas fa-microchip"></i></div>
+                    <div class="card-info"><h4 id="totalPCs">0</h4><p>Total Nodes Allocated</p></div>
+                </div>
+                <div class="metric-card card-green">
+                    <div class="card-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="card-info"><h4 id="healthyPCs">0</h4><p>Healthy Operations</p></div>
+                </div>
+                <div class="metric-card card-orange">
+                    <div class="card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="card-info"><h4 id="warningPCs">0</h4><p>Warning Indicators</p></div>
+                </div>
+                <div class="metric-card card-red">
+                    <div class="card-icon"><i class="fas fa-radiation"></i></div>
+                    <div class="card-info"><h4 id="criticalPCs">0</h4><p>Critical Urgent Actions</p></div>
+                </div>
+            </div>
+
+            <div class="dashboard-split-matrix" style="grid-template-columns: 1.2fr 0.8fr;">
+                <div class="table-frame-panel">
+                    <h3>Monitored Station Cluster Log</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Station Name Tag</th>
+                                    <th>Operational State</th>
+                                    <th>Status Level</th>
+                                    <th>Processor (CPU)</th>
+                                    <th>Hardware Vendor</th>
+                                    <th>Storage Type</th>
+                                    <th>Capacity</th>
+                                    <th>Free Space</th>
+                                    <th>Chassis Temp</th>
+                                    <th>CPU Core Temp</th>
+                                    <th>Primary User</th>
+                                </tr>
+                            </thead>
+                            <tbody id="branchTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="analytical-sidebar-panel">
+                    <div class="chart-box">
+                        <h3>Distribution Metrics Matrix</h3>
+                        <div class="chart-canvas-wrapper"><canvas id="branchChart"></canvas></div>
+                    </div>
+                    <div class="local-notes-box">
+                        <h3><i class="far fa-comments"></i> Logged Station Event Notes</h3>
+                        <div id="branchRemarks" class="remarks-scroll-stack"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="adminPage" class="page hidden">
+            <div class="section-title-bar">
+                <div>
+                    <h2>Administrative Master Configuration Console</h2>
+                    <p>Authorized access point for node tracking, environment parameter overrides, configuration patches, and rollback logs.</p>
+                </div>
+            </div>
+
+            <div class="admin-selector-strip" style="display: flex; justify-content: space-between; align-items: center; background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <div class="form-element" style="margin: 0; min-width: 320px;">
+                    <label for="adminBranchSelect" style="font-weight: 700; color: #1e293b;"><i class="fas fa-filter"></i> Target Department Domain Scope:</label>
+                    <select id="adminBranchSelect" onchange="loadAdminBranchData()" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #cbd5e1; margin-top: 4px;"></select>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: center;">
+                    <button class="add-btn" style="background: #16a34a; color: white;" onclick="openAddPcForm()"><i class="fas fa-plus"></i> Add PC</button>
+                    <button class="btn-danger" style="background: #dc2626; color: white; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer;" onclick="openDeletePcOverlay()"><i class="fas fa-trash-alt"></i> Delete PC</button>
+                    <button class="add-btn" style="background: #2563eb; color: white;" onclick="openFloatingUpdateOverlay()"><i class="fas fa-edit"></i> Update PC</button>
+                    <button class="edit-btn" style="background: #475569; color: white;" onclick="toggleHistoryPane()"><i class="fas fa-history"></i> Change History</button>
+                    <button class="btn-danger" style="background: #ef4444; color: white; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer;" onclick="logoutAdmin()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+                </div>
+            </div>
+
+            <div id="pcFormContainer" class="form-container hidden">
+                <h3 id="formTitleHeader">Add New PC</h3>
+                <form id="pcForm">
+                    <div class="form-grid-layout">
+                        <div class="form-element"><label for="branchInput">Branch</label><select id="branchInput" required></select></div>
+                        <div class="form-element"><label for="username"><i class="fas fa-user" style="color:#2563eb; margin-right:6px;"></i>User</label><input type="text" id="username" required placeholder="e.g. jsmith"></div>
+                        <div class="form-element"><label for="pcName">PC Name</label><input type="text" id="pcName" placeholder="e.g. SDC-PC-01"></div>
+                        <div class="form-element">
+                            <label for="pcState">State</label>
+                            <select id="pcState">
+                                <option value="Active">Active</option>
+                                <option value="Down">Down</option>
+                            </select>
+                        </div>
+                        <div class="form-element">
+                            <label for="health">Health</label>
+                            <select id="health">
+                                <option value="Healthy">Healthy</option>
+                                <option value="Warning">Warning</option>
+                                <option value="Critical">Critical</option>
+                            </select>
+                            <small style="display:block; margin-top:6px; color:#475569; font-size:12px;">Auto-evaluated from disk space & temperature.</small>
+                        </div>
+                        <div class="form-element"><label for="pcProcessor">Processor</label><input type="text" id="pcProcessor" placeholder="e.g. Intel Core i5"></div>
+                        <div class="form-element"><label for="brand">Brand</label><input type="text" id="brand" placeholder="e.g. HP ProDesk"></div>
+                        <div class="form-element"><label for="storage">Storage Type</label><input type="text" id="storage" required placeholder="e.g. NVMe SSD"></div>
+                        <div class="form-element"><label for="capacity">Disk Capacity (GB)</label><input type="number" min="0" step="1" id="capacity" required placeholder="e.g. 512"></div>
+                        <div class="form-element"><label for="freeSpace">Free Space (GB)</label><input type="number" min="0" step="1" id="freeSpace" required placeholder="e.g. 45"></div>
+                        <div class="form-element"><label for="pcTemp">Chassis Temp (°C)</label><input type="number" id="pcTemp" required placeholder="e.g. 42"></div>
+                        <div class="form-element"><label for="processorTemp">CPU Temp (°C)</label><input type="number" id="processorTemp" required placeholder="e.g. 47"></div>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                        <button type="button" class="delete-btn" style="padding:12px 24px;" onclick="document.getElementById('pcFormContainer').classList.add('hidden')">Cancel</button>
+                        <button type="submit" class="add-btn" style="padding:12px 24px;">Save PC</button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="historyContainer" class="form-container hidden" style="margin-top: 25px; border-top: 4px solid #475569;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0; color: #1e293b;"><i class="fas fa-history" style="color: #475569;"></i> System Log & Reversion Operations</h3>
+                    <button id="clearHistoryBtn" class="delete-btn" style="padding: 6px 12px; font-size: 12px;" onclick="clearAllAuditLogs()">Clear Log History</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 10%;">ID Ref</th>
+                                <th style="width: 12%;">Event Action</th>
+                                <th style="width: 58%;">Change Metrics Description</th>
+                                <th style="width: 20%; text-align: center;">Controls</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyLogBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <h3>System Modification History & Audit Ledger</h3>
+            <div id="adminHistoryLedgerContainer" style="margin-bottom: 40px; display: flex; flex-direction: column; gap: 10px;">
+                </div>
+
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 40px 0;">
+
+            <div class="dashboard-split-matrix" style="grid-template-columns: 1.1fr 0.9fr;">
+                <div class="remarks-management">
+                    <h3>Issue Global Transmission Broadcast</h3>
+                    <div class="form-element">
+                        <label for="remarkBranch">1. Context Department Association</label>
+                        <select id="remarkBranch" onchange="syncBroadcastPCSelection()"></select>
+                    </div>
+                    <div class="form-element">
+                        <label style="font-weight:700;">2. Target Workstation Scope Allocation (Optional)</label>
+                        <span style="font-size:11px; color:#64748b; margin-top:-4px; margin-bottom:6px; display: block;">
+                            Leave completely unchecked to distribute as a general branch wide system announcement.
+                        </span>
+                        <div id="broadcastPcCheckboxContainer" class="pc-checkbox-scroll-box"></div>
+                    </div>
+                    <div class="form-element">
+                        <label for="remarkCategory">3. Transmission Threat Vector Grouping</label>
+                        <select id="remarkCategory">
+                            <option value="Healthy">Notice (Optimization Completed)</option>
+                            <option value="Warning">Warning (Scheduled Downtime)</option>
+                            <option value="Critical">Critical Alert (Hardware Incidents)</option>
+                        </select>
+                    </div>
+                    <div class="form-element">
+                        <label for="remarkText">4. Detailed Incident Dispatch Log Description</label>
+                        <textarea id="remarkText" rows="4" placeholder="Input analytical system warnings or optimization briefs..."></textarea>
+                    </div>
+                    <button onclick="saveRemark()"><i class="fas fa-rss"></i> Publish System Note</button>
+                </div>
+                
+                <div class="table-frame-panel">
+                    <h3>Active Transmissions Directory</h3>
+                    <div id="remarksList" class="remarks-management-scroll-stack"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="analysisPage" class="page hidden">
+            <div class="section-title-bar">
+                <div>
+                    <span class="breadcrumb-tag">Performance Analysis</span>
+                    <h2>Branch Trend & Comparison Report</h2>
+                    <p>Interactive monthly and yearly branch performance analytics with comparison tools.</p>
+                </div>
+                <button class="edit-btn" style="background:#475569; color:white;" onclick="showOverallSummary()"><i class="fas fa-chevron-left"></i> Back to Home</button>
+            </div>
+
+            <div class="analysis-filter-panel">
+                <div class="form-element" style="min-width:180px; flex:1;">
+                    <label for="analysisYearSelect">Year</label>
+                    <select id="analysisYearSelect" onchange="renderAnalysisView()"></select>
+                </div>
+                <div class="form-element" style="min-width:180px; flex:1;">
+                    <label for="analysisMonthSelect">Month</label>
+                    <select id="analysisMonthSelect" onchange="renderAnalysisView()"></select>
+                </div>
+                <div class="form-element" style="min-width:220px; flex:1;">
+                    <label for="analysisBranchSelect">Branch</label>
+                    <select id="analysisBranchSelect" onchange="renderAnalysisView()"></select>
+                </div>
+                <div class="form-element" style="min-width:220px; flex:1; display:grid; gap:10px;">
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <button id="analysisOpenCompareBtn" type="button" class="add-btn" style="background:#16a34a; color:white; border:none; padding:14px 18px; font-size:14px;">Generate Comparison</button>
+                        <button id="analysisOpenAdvancedBtn" type="button" class="add-btn" style="background:#475569; color:white; border:none; padding:14px 18px; font-size:14px;" onclick="showAdvancedHealthDashboard()">Show Advanced Health &amp; Maintenance Dashboard</button>
+                    </div>
+                    <small id="analysisCompareSummary" style="display:block; color:#64748b; font-size:13px;">Choose months, select branch scope, then generate comparison.</small>
+                </div>
+            </div>
+
+            <div class="metrics-card-grid structural-five-column" style="margin-bottom: 24px;">
+                <div class="metric-card card-blue clickable" onclick="showMetricSummary('analysisTopBranch')">
+                    <div class="card-icon"><i class="fas fa-exclamation-circle"></i></div>
+                    <div class="card-info"><h4 id="analysisTopBranch">N/A</h4><p>Branch With Most Problems</p></div>
+                </div>
+                <div class="metric-card card-dark clickable" onclick="showMetricSummary('analysisProblemCount')">
+                    <div class="card-icon"><i class="fas fa-tools"></i></div>
+                    <div class="card-info"><h4 id="analysisProblemCount">0</h4><p>Total Reported Issues</p></div>
+                </div>
+                <div class="metric-card card-green clickable" onclick="showMetricSummary('analysisPerformanceScore')">
+                    <div class="card-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="card-info"><h4 id="analysisPerformanceScore">0%</h4><p>Average Branch Performance</p></div>
+                </div>
+                <div class="metric-card card-orange clickable" onclick="showMetricSummary('analysisBreakdowns')">
+                    <div class="card-icon"><i class="fas fa-wrench"></i></div>
+                    <div class="card-info"><h4 id="analysisBreakdowns">0</h4><p>Branch Breakdowns</p></div>
+                </div>
+                <div class="metric-card card-red clickable" onclick="showMetricSummary('analysisWorstCategory')">
+                    <div class="card-icon"><i class="fas fa-chart-pie"></i></div>
+                    <div class="card-info"><h4 id="analysisWorstCategory">N/A</h4><p>Most Common Problem</p></div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-box">
+                    <h3>Issue Volume by Branch</h3>
+                    <div class="chart-canvas-wrapper"><canvas id="analysisBranchIssuesChart"></canvas></div>
+                </div>
+                <div class="chart-box">
+                    <h3>Performance Trend</h3>
+                    <div class="chart-canvas-wrapper"><canvas id="analysisPerformanceChart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="chart-grid">
+                <div class="chart-box">
+                    <h3>Problem Category Breakdown</h3>
+                    <div class="chart-canvas-wrapper"><canvas id="analysisProblemCategoryChart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="table-frame-panel" style="margin-top: 24px;">
+                <h3>Branch Performance Summary</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Branch</th>
+                                <th>Issue Count</th>
+                                <th>Performance</th>
+                                <th>Breakdowns</th>
+                                <th>Worst Category</th>
+                            </tr>
+                        </thead>
+                        <tbody id="analysisSummaryTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="advancedHealthDashboard" class="analysis-enhancement-panel hidden">
+                <div class="section-title-bar" style="margin-top: 32px;">
+                    <div>
+                        <h3>Advanced Health & Maintenance Dashboard</h3>
+                        <p>Live maintenance forecasting, warranty visibility, replacement planning and hardware health intelligence.</p>
+                    </div>
+                    <button type="button" class="btn-cancel" style="background:#e2e8f0; color:#0f172a; margin-left:12px;" onclick="closeAdvancedHealthDashboard()">Close</button>
+                </div>
+
+                <div class="analysis-card-grid">
+                    <div class="insight-card" onclick="showMetricSummary('deviceHealthSummary')">
+                        <strong id="insightTotalDevices">0</strong>
+                        <p>Device Health Summary</p>
+                        <span id="insightHealthCaption">Overall fleet status and health ratio.</span>
+                    </div>
+                    <div class="insight-card" onclick="showMetricSummary('branchProblemRanking')">
+                        <strong id="insightTopBranch">N/A</strong>
+                        <p>Branch Problem Ranking</p>
+                        <span id="insightBranchCaption">Top branches by issue volume.</span>
+                    </div>
+                    <div class="insight-card" onclick="showMetricSummary('hardwareReplacementAnalysis')">
+                        <strong id="insightReplacementCandidates">0</strong>
+                        <p>Hardware Replacement Analysis</p>
+                        <span id="insightReplacementCaption">Devices prioritized for replacement.</span>
+                    </div>
+                    <div class="insight-card" onclick="showMetricSummary('diskHealthMonitoring')">
+                        <strong id="insightAvgDiskHealth">0%</strong>
+                        <p>Disk Health Monitoring</p>
+                        <span id="insightDiskCaption">Average wear and risk by storage type.</span>
+                    </div>
+                    <div class="insight-card" onclick="showMetricSummary('temperatureAnalysis')">
+                        <strong id="insightAvgTemp">0°C</strong>
+                        <p>Temperature Analysis</p>
+                        <span id="insightTempCaption">Average CPU and chassis temperature.</span>
+                    </div>
+                    <div class="insight-card" onclick="showMetricSummary('predictiveMaintenance')">
+                        <strong id="insightMaintenanceRisk">Low</strong>
+                        <p>Predictive Maintenance</p>
+                        <span id="insightPredictiveCaption">Forecasted maintenance risk across the branch.</span>
+                    </div>
+                    <div class="insight-card" onclick="showMetricSummary('assetAgeWarranty')">
+                        <strong id="insightWarrantyExpiring">0</strong>
+                        <p>Asset Age & Warranty Tracking</p>
+                        <span id="insightWarrantyCaption">Assets nearing warranty expiration.</span>
+                    </div>
+                    <div class="insight-card" onclick="showMetricSummary('maintenanceCostReport')">
+                        <strong id="insightCostEstimate">₱0</strong>
+                        <p>Maintenance Cost Report</p>
+                        <span id="insightCostCaption">Estimated maintenance spend trend.</span>
+                    </div>
+                </div>
+
+                <div class="analysis-visual-grid">
+                    <div class="chart-box">
+                        <h3>Disk Health Monitoring</h3>
+                        <div class="chart-canvas-wrapper"><canvas id="analysisDiskHealthChart"></canvas></div>
+                    </div>
+                    <div class="chart-box">
+                        <h3>Temperature Analysis</h3>
+                        <div class="chart-canvas-wrapper"><canvas id="analysisTempChart"></canvas></div>
+                    </div>
+                    <div class="chart-box">
+                        <h3>Predictive Maintenance Risk</h3>
+                        <div class="chart-canvas-wrapper"><canvas id="analysisMaintenanceRiskChart"></canvas></div>
+                    </div>
+                    <div class="chart-box">
+                        <h3>Maintenance Cost Forecast</h3>
+                        <div class="chart-canvas-wrapper"><canvas id="analysisMaintenanceCostChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="dashboard-split-matrix" style="grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+                    <div class="table-frame-panel">
+                        <h3>Asset Age & Warranty Tracking</h3>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Station</th>
+                                        <th>Age</th>
+                                        <th>Warranty Expiry</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analysisAssetAgeBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="table-frame-panel">
+                        <h3>Hardware Replacement Analysis</h3>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Station</th>
+                                        <th>Risk</th>
+                                        <th>Storage Health</th>
+                                        <th>Temp</th>
+                                        <th>Recommended Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="analysisReplacementBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div id="analysisCompareModalOverlay" class="modal-overlay hidden">
+            <div class="compare-modal-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:18px;">
+                    <div>
+                        <h3 style="margin:0; font-size:22px;">Build Comparison Report</h3>
+                        <p style="margin:6px 0 0 0; color:#475569; font-size:14px;">Choose either years or months and the branch scope, then generate the comparison popup.</p>
+                    </div>
+                    <button type="button" class="btn-cancel" style="background:#e2e8f0; color:#0f172a;" onclick="closeAnalysisCompareModal()">Close</button>
+                </div>
+
+                <div class="compare-modal-section">
+                    <div class="form-element">
+                        <label>Choose values</label>
+                        <div class="inline-toggle-group" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                            <button id="analysisCompareModeYears" type="button" class="small-toggle-btn active">Years</button>
+                            <button id="analysisCompareModeMonths" type="button" class="small-toggle-btn">Months</button>
+                        </div>
+                        <div id="analysisCompareMultiTargetsWrapper" class="compare-checkbox-grid"></div>
+                    </div>
+
+                    <div class="form-element" style="display:grid; gap:10px;">
+                        <label for="analysisCompareBranchScopeSelect">Branch Scope</label>
+                        <select id="analysisCompareBranchScopeSelect" style="width:100%; padding:10px 12px; border-radius:12px; border:1px solid #cbd5e1;">
+                            <option value="all">All Branches</option>
+                            <option value="selected">Choose Branches</option>
+                        </select>
+                        <div id="analysisCompareBranchTargetsWrapper" class="compare-checkbox-grid hidden"></div>
+                    </div>
+                </div>
+                <div class="compare-modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeAnalysisCompareModal()">Cancel</button>
+                    <button id="analysisModalGenerateBtn" type="button" class="add-btn" style="background:#16a34a; color:white;">Generate Comparison</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="analysisCompareResultOverlay" class="modal-overlay hidden">
+            <div class="compare-modal-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:18px;">
+                    <div>
+                        <h3 style="margin:0; font-size:22px;">Comparison Preview</h3>
+                        <p id="analysisCompareResultLabel" style="margin:6px 0 0 0; color:#475569; font-size:14px;">Download the comparison chart after review.</p>
+                    </div>
+                    <button type="button" class="btn-cancel" style="background:#e2e8f0; color:#0f172a;" onclick="closeAnalysisCompareResultOverlay()">Close</button>
+                </div>
+                <div class="compare-modal-section">
+                    <div class="compare-result-summary-grid">
+                        <div class="compare-summary-card">
+                            <span>Selected Branches</span>
+                            <strong id="analysisCompareResultSelectedBranches">0</strong>
+                        </div>
+                        <div class="compare-summary-card">
+                            <span>Total Breakdowns</span>
+                            <strong id="analysisCompareResultBreakdowns">0</strong>
+                        </div>
+                        <div class="compare-summary-card">
+                            <span>Healthy PCs</span>
+                            <strong id="analysisCompareResultHealthyPcs">0</strong>
+                        </div>
+                        <div class="compare-summary-card">
+                            <span>Average Performance</span>
+                            <strong id="analysisCompareResultAveragePerformance">0%</strong>
+                        </div>
+                    </div>
+                    <div class="chart-canvas-wrapper" style="min-height: 320px;">
+                        <canvas id="analysisCompareResultChart"></canvas>
+                    </div>
+                    <div class="compare-report-detail-grid">
+                        <div class="chart-box" style="padding: 16px 18px; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(15,23,42,0.05);">
+                            <h4 style="font-size:15px; margin-bottom:12px;">Health Distribution</h4>
+                            <div class="chart-canvas-wrapper" style="min-height: 220px;">
+                                <canvas id="analysisCompareHealthChart"></canvas>
+                            </div>
+                        </div>
+                        <div id="analysisCompareReportInsights" class="report-detail-cards">
+                            <div class="report-detail-item"><strong>Top issue branch:</strong> <span id="analysisCompareTopIssueBranch">N/A</span></div>
+                            <div class="report-detail-item"><strong>Best performing branch:</strong> <span id="analysisCompareBestBranch">N/A</span></div>
+                            <div class="report-detail-item"><strong>Most common issue:</strong> <span id="analysisCompareMostCommonCategory">N/A</span></div>
+                            <div class="report-detail-item"><strong>Average storage free:</strong> <span id="analysisCompareAvgFreeSpace">0 GB</span></div>
+                            <div class="report-detail-item"><strong>Average temperature:</strong> <span id="analysisCompareAvgTemp">0°C</span></div>
+                            <div class="report-detail-item"><strong>Total PCs monitored:</strong> <span id="analysisCompareTotalPcs">0</span></div>
+                            <div class="report-detail-item"><strong>Report generated:</strong> <span id="analysisCompareGeneratedAt">N/A</span></div>
+                        </div>
+                    </div>
+                    <div class="chart-box" style="padding: 16px 18px; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(15,23,42,0.05); margin-top: 18px;">
+                        <h4 style="font-size:15px; margin-bottom:12px;">Issues by Branch</h4>
+                        <div class="chart-canvas-wrapper" style="min-height: 240px;">
+                            <canvas id="analysisCompareBranchIssueChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="compare-modal-footer" style="align-items:center; gap:12px; flex-wrap:wrap;">
+                    <button type="button" class="btn-cancel" onclick="closeAnalysisCompareResultOverlay()">Close</button>
+                    <div style="display:flex; gap:10px; align-items:center; flex:1; min-width:260px; justify-content:flex-end;">
+                        <button id="analysisCompareDownloadBtn" type="button" class="add-btn" style="background:#16a34a; color:white;">Download PNG</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <section id="itTrackerPage" class="page hidden">
+            <div class="section-title-bar">
+                <div>
+                    <h2>IT Staff Tracker</h2>
+                    <p>Update IT staff location and remarks. These updates will be reflected on the Home page.</p>
+                </div>
+            </div>
+
+            <div class="it-tracker-layout">
+                <div class="it-tracker-panel it-tracker-panel--left">
+                    <h3>IT Deployment Tracker</h3>
+                    <p class="panel-subtitle">Track and assign your IT staff location, status, and live activity in one place.</p>
+
+                    <div class="it-tracker-toolbar">
+                        <div class="it-tracker-action-panel">
+                            <button type="button" class="add-btn" onclick="openAddStaffModal();"><i class="fas fa-user-plus"></i> Add IT Staff</button>
+                            <button type="button" class="edit-btn" onclick="openUpdateProfileModal();"><i class="fas fa-user-edit"></i> Update Profile</button>
+                            <button type="button" class="secondary-btn" onclick="openFeedbackQuestionModal();"><i class="fas fa-question-circle"></i> Feedback Settings</button>
+                            <button type="button" class="secondary-btn" onclick="showStaffFeedbackHistoryPage();"><i class="fas fa-comments"></i> Feedbacks</button>
+                            <button id="itTrackerLogHistoryBtn" type="button" class="secondary-btn hidden" onclick="openITTrackerLogHistoryModal();"><i class="fas fa-history"></i> Shift Log History</button>
+                        </div>
+                        <div class="it-tracker-toolbar-badge">
+                            <i class="fas fa-cogs"></i> Organized support operations
+                        </div>
+                    </div>
+
+                    <div class="it-tracker-section it-tracker-section--status">
+                        <div class="section-label-row">
+                            <div>
+                                <h4>Deployment Status</h4>
+                                <p>Use this area for live updates. Profile details are maintained separately.</p>
+                            </div>
+                            <div id="itTrackerStatusPill" class="status-pill status-pill-standby"><i class="fas fa-circle"></i> Standby</div>
+                        </div>
+                        <div class="form-element">
+                            <label for="itTrackerStaffSelect">Select IT Staff Member</label>
+                            <select id="itTrackerStaffSelect" onchange="updateITTrackerFields()"></select>
+                        </div>
+                        <div class="form-element">
+                            <label for="itTrackerLocationSelect">Current Location (Branch)</label>
+                            <select id="itTrackerLocationSelect"></select>
+                        </div>
+                        <div class="form-element">
+                            <label for="itTrackerRemarksText">Remarks / Activity Notes</label>
+                            <textarea id="itTrackerRemarksText" placeholder="Enter what the staff member is currently doing or working on..."></textarea>
+                        </div>
+                        <div class="form-actions-row it-tracker-bottom-actions">
+                            <button type="button" class="btn-cancel" onclick="resetITTrackerForm();"><i class="fas fa-undo"></i> Reset</button>
+                            <button type="button" class="add-btn" onclick="saveITTrackerDeployment();"><i class="fas fa-paper-plane"></i> Save Deployment</button>
+                            <button type="button" class="secondary-btn" onclick="startShiftForSelectedStaff();"><i class="fas fa-play-circle"></i> Start Shift</button>
+                            <button type="button" class="secondary-btn" onclick="endShiftForSelectedStaff();"><i class="fas fa-power-off"></i> End Shift</button>
+                            <button type="button" class="delete-btn" onclick="removeCurrentITStaff();"><i class="fas fa-user-slash"></i> Delete Staff</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div id="staffFeedbackCompareModalOverlay" class="modal-overlay hidden">
+            <div class="compare-modal-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:18px;">
+                    <div>
+                        <h3 style="margin:0; font-size:22px;">Staff Feedback Comparison</h3>
+                        <p style="margin:6px 0 0 0; color:#475569; font-size:14px;">Select years or months and the staff scope to compare IT staff performance.</p>
+                    </div>
+                    <button type="button" class="btn-cancel" style="background:#e2e8f0; color:#0f172a;" onclick="closeStaffFeedbackCompareModal()">Close</button>
+                </div>
+                <div class="compare-modal-section">
+                    <div class="form-element">
+                        <label>Choose values</label>
+                        <div class="inline-toggle-group" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                            <button id="staffFeedbackCompareModeYears" type="button" class="small-toggle-btn active">Years</button>
+                            <button id="staffFeedbackCompareModeMonths" type="button" class="small-toggle-btn">Months</button>
+                        </div>
+                        <div id="staffFeedbackCompareMultiTargetsWrapper" class="compare-checkbox-grid"></div>
+                    </div>
+                    <div class="form-element" style="display:grid; gap:10px;">
+                        <label for="staffFeedbackCompareScopeSelect">Staff Scope</label>
+                        <select id="staffFeedbackCompareScopeSelect" style="width:100%; padding:10px 12px; border-radius:12px; border:1px solid #cbd5e1;">
+                            <option value="all">All Staff</option>
+                            <option value="selected">Choose Staff</option>
+                        </select>
+                        <div id="staffFeedbackCompareTargetsWrapper" class="compare-checkbox-grid hidden"></div>
+                    </div>
+                </div>
+                <div class="compare-modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeStaffFeedbackCompareModal()">Cancel</button>
+                    <button id="staffFeedbackCompareGenerateBtn" type="button" class="add-btn" style="background:#16a34a; color:white;">Generate Comparison</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="staffFeedbackCompareResultOverlay" class="modal-overlay hidden">
+            <div class="compare-modal-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:18px;">
+                    <div>
+                        <h3 style="margin:0; font-size:22px;">Feedback Comparison Preview</h3>
+                        <p id="staffFeedbackCompareResultLabel" style="margin:6px 0 0 0; color:#475569; font-size:14px;">Review the selected staff comparison and download it if needed.</p>
+                    </div>
+                    <button type="button" class="btn-cancel" style="background:#e2e8f0; color:#0f172a;" onclick="closeStaffFeedbackCompareResultOverlay()">Close</button>
+                </div>
+                <div class="compare-modal-section">
+                    <div class="compare-result-summary-grid">
+                        <div class="compare-summary-card">
+                            <span>Selected Staff</span>
+                            <strong id="staffFeedbackCompareResultSelectedStaff">0</strong>
+                        </div>
+                        <div class="compare-summary-card">
+                            <span>Total Feedbacks</span>
+                            <strong id="staffFeedbackCompareResultTotalFeedbacks">0</strong>
+                        </div>
+                        <div class="compare-summary-card">
+                            <span>5-Star Reviews</span>
+                            <strong id="staffFeedbackCompareResultFiveStars">0</strong>
+                        </div>
+                        <div class="compare-summary-card">
+                            <span>Average Rating</span>
+                            <strong id="staffFeedbackCompareResultAverageRating">0.0</strong>
+                        </div>
+                    </div>
+                    <div class="chart-canvas-wrapper" style="min-height: 320px;">
+                        <canvas id="staffFeedbackCompareResultChart"></canvas>
+                    </div>
+                    <div class="compare-report-detail-grid">
+                        <div class="chart-box" style="padding: 16px 18px; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(15,23,42,0.05);">
+                            <h4 style="font-size:15px; margin-bottom:12px;">Rating Distribution</h4>
+                            <div class="chart-canvas-wrapper" style="min-height: 220px;">
+                                <canvas id="staffFeedbackCompareRatingDistributionChart"></canvas>
+                            </div>
+                        </div>
+                        <div id="staffFeedbackCompareReportInsights" class="report-detail-cards">
+                            <div class="report-detail-item"><strong>Lowest rated staff:</strong> <span id="staffFeedbackCompareTopIssueStaff">N/A</span></div>
+                            <div class="report-detail-item"><strong>Best performing staff:</strong> <span id="staffFeedbackCompareBestStaff">N/A</span></div>
+                            <div class="report-detail-item"><strong>Most common branch:</strong> <span id="staffFeedbackCompareMostCommonBranch">N/A</span></div>
+                            <div class="report-detail-item"><strong>Average rating:</strong> <span id="staffFeedbackCompareAvgRating">0.0</span></div>
+                            <div class="report-detail-item"><strong>Total reviews included:</strong> <span id="staffFeedbackCompareTotalReviews">0</span></div>
+                            <div class="report-detail-item"><strong>Report generated:</strong> <span id="staffFeedbackCompareGeneratedAt">N/A</span></div>
+                        </div>
+                    </div>
+                    <div class="chart-box" style="padding: 16px 18px; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(15,23,42,0.05); margin-top: 18px;">
+                        <h4 style="font-size:15px; margin-bottom:12px;">Average Rating by Staff</h4>
+                        <div class="chart-canvas-wrapper" style="min-height: 240px;">
+                            <canvas id="staffFeedbackCompareStaffRatingChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="compare-modal-footer" style="align-items:center; gap:12px; flex-wrap:wrap;">
+                    <button type="button" class="btn-cancel" onclick="closeStaffFeedbackCompareResultOverlay()">Close</button>
+                    <div style="display:flex; gap:10px; align-items:center; flex:1; min-width:260px; justify-content:flex-end;">
+                        <button id="staffFeedbackCompareDownloadBtn" type="button" class="add-btn" style="background:#16a34a; color:white;">Download PNG</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <section id="staffFeedbackHistoryPage" class="page hidden feedback-page-fullwidth">
+            <div class="section-title-bar section-title-bar--wide">
+                <div>
+                    <span class="breadcrumb-tag">Feedback Dashboard</span>
+                    <h2>Feedback History</h2>
+                    <p>Review staff feedback history and performance trends for IT staff members.</p>
+                </div>
+                <div class="report-actions">
+                    <button class="edit-btn" style="background:#475569; color:white;" onclick="showITTrackerPage()"><i class="fas fa-chevron-left"></i> Back to IT Tracker</button>
+                </div>
+            </div>
+            <div class="feedback-page-layout">
+                <aside class="feedback-summary-panel">
+                    <div class="panel-card feedback-filter-card">
+                        <label for="feedbackHistoryStaffSelect">Select Staff</label>
+                        <select id="feedbackHistoryStaffSelect" onchange="renderStaffFeedbackHistoryPage()"></select>
+                    </div>
+                    <div class="feedback-metrics-grid">
+                        <div class="metric-card card-blue feedback-metric-card">
+                            <div class="card-info"><span>Total Feedbacks</span><strong id="feedbackSummaryCount">0</strong></div>
+                        </div>
+                        <div class="metric-card card-green feedback-metric-card">
+                            <div class="card-info"><span>Average Rating</span><strong id="feedbackSummaryAvg">0.0</strong></div>
+                        </div>
+                        <div class="metric-card card-dark feedback-metric-card">
+                            <div class="card-info"><span>5-Star Reviews</span><strong id="feedbackSummaryPositive">0</strong></div>
+                        </div>
+                        <div class="metric-card card-orange feedback-metric-card">
+                            <div class="card-info"><span>1-2 Star Reviews</span><strong id="feedbackSummaryNegative">0</strong></div>
+                        </div>
+                    </div>
+                </aside>
+                <main class="feedback-main-panel">
+                    <div class="feedback-main-header" style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:16px; align-items:flex-start;">
+                        <div>
+                            <h3>Feedback Performance</h3>
+                            <p>Use the filter panel to select the staff member and watch their feedback trend with live comparison.</p>
+                        </div>
+                        <button id="feedbackOpenCompareBtn" type="button" class="add-btn" style="background:#16a34a; color:white; border:none; padding:10px 16px; font-size:13px; white-space:nowrap;" onclick="openStaffFeedbackCompareModal()">
+                            <i class="fas fa-chart-bar"></i> Compare Staff Performance
+                        </button>
+                    </div>
+                    <div class="feedback-trend-grid">
+                        <div class="chart-card feedback-trend-card">
+                            <h4>Performance Trend</h4>
+                            <div class="chart-canvas-wrapper" style="min-height: 360px;">
+                                <canvas id="staffFeedbackPerformanceChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card feedback-summary-chart-card">
+                            <h4>Average Rating by Staff</h4>
+                            <div class="chart-canvas-wrapper" style="min-height: 360px;">
+                                <canvas id="staffFeedbackAverageChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-frame-panel feedback-history-table-panel">
+                        <div class="section-label-row" style="margin-bottom: 12px; gap: 12px; align-items: baseline;">
+                            <div>
+                                <h3>Feedback History</h3>
+                                <p>All feedback responses are listed here with dynamic question columns.</p>
+                            </div>
+                        </div>
+                        <div id="staffFeedbackHistoryList" class="feedback-history-list"></div>
+                    </div>
+                </main>
+            </div>
+        </section>
+
+        <section id="inventoryReportPage" class="page hidden">
+            <div class="section-title-bar inventory-page-header">
+                <div>
+                    <span class="breadcrumb-tag">Inventory Health & Replacement Dashboard</span>
+                    <h2>Inventory Report System</h2>
+                    <p>Review inventory health across all branches, filter by location, and inspect flagged PCs requiring attention.</p>
+                </div>
+                <div class="report-actions">
+                    <button class="edit-btn" style="background:#475569; color:white;" onclick="showAdminPanel()"><i class="fas fa-chevron-left"></i> Back to Admin</button>
+                </div>
+            </div>
+
+            <div class="inventory-report-filter">
+                <div class="form-element" style="min-width:280px; flex:1;">
+                    <label for="inventoryBranchFilter">Branch Filter</label>
+                    <select id="inventoryBranchFilter" onchange="renderInventoryReportView()"></select>
+                </div>
+                <div style="flex:1; min-width:320px;">
+                    <p style="color:#475569; margin-top:24px; font-size:13px;">
+                        Use this filter to narrow the inventory report to a single branch or leave blank for a full consolidated view.
+                    </p>
+                </div>
+            </div>
+
+            <div class="inventory-report-layout">
+                <aside class="inventory-summary-panel">
+                    <div class="inventory-overview-grid">
+                        <div class="inventory-card">
+                            <div class="card-label">Overall Healthcare</div>
+                            <div class="card-value" style="display:flex; align-items:center; gap:12px;">
+                                <canvas id="inventoryHealthcareChart" width="120" height="120"></canvas>
+                                <div style="display:flex; flex-direction:column;">
+                                    <div id="inventoryOverallHealthcare" style="font-size:24px; font-weight:900;">0%</div>
+                                    <div class="card-annotation">Percentage of monitored PCs with healthy telemetry.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="inventory-summary-action-grid">
+                        <div class="inventory-card inventory-card-action" data-filter="all" onclick="applyInventorySummaryFilter('all')" role="button">
+                            <div class="card-label">Total Terminals in Scope</div>
+                            <div style="display:flex; gap:12px; align-items:center;">
+                                <div style="flex:1;"><div class="card-value" id="inventoryTotalPcsCount">0</div><div class="card-annotation">View all terminals for the current branch scope.</div></div>
+                                <canvas class="mini-pie" id="mini-all" width="72" height="72"></canvas>
+                            </div>
+                        </div>
+                        <div class="inventory-card inventory-card-action" data-filter="warning" onclick="applyInventorySummaryFilter('warning')" role="button">
+                            <div class="card-label">Warning Conditions</div>
+                            <div style="display:flex; gap:12px; align-items:center;">
+                                <div style="flex:1;"><div class="card-value" id="inventoryWarningCount">0</div><div class="card-annotation">PCs flagged for warning-level issues.</div></div>
+                                <canvas class="mini-pie" id="mini-warning" width="72" height="72"></canvas>
+                            </div>
+                        </div>
+                        <div class="inventory-card inventory-card-action" data-filter="critical" onclick="applyInventorySummaryFilter('critical')" role="button">
+                            <div class="card-label">Critical Alerts</div>
+                            <div style="display:flex; gap:12px; align-items:center;">
+                                <div style="flex:1;"><div class="card-value" id="inventoryCriticalCount">0</div><div class="card-annotation">Devices requiring immediate attention.</div></div>
+                                <canvas class="mini-pie" id="mini-critical" width="72" height="72"></canvas>
+                            </div>
+                        </div>
+                        <div class="inventory-card inventory-card-action" data-filter="offline" onclick="applyInventorySummaryFilter('offline')" role="button">
+                            <div class="card-label">Offline / Down</div>
+                            <div style="display:flex; gap:12px; align-items:center;">
+                                <div style="flex:1;"><div class="card-value" id="inventoryDownCount">0</div><div class="card-annotation">Systems currently offline or down.</div></div>
+                                <canvas class="mini-pie" id="mini-offline" width="72" height="72"></canvas>
+                            </div>
+                        </div>
+                        <div class="inventory-card inventory-card-action" data-filter="highTemp" onclick="applyInventorySummaryFilter('highTemp')" role="button">
+                            <div class="card-label">High Temperature Flags</div>
+                            <div style="display:flex; gap:12px; align-items:center;">
+                                <div style="flex:1;"><div class="card-value" id="inventoryHighTempCount">0</div><div class="card-annotation">PCs exceeding safe temperature thresholds.</div></div>
+                                <canvas class="mini-pie" id="mini-highTemp" width="72" height="72"></canvas>
+                            </div>
+                        </div>
+                        <div class="inventory-card inventory-card-action" data-filter="lowStorage" onclick="applyInventorySummaryFilter('lowStorage')" role="button">
+                            <div class="card-label">Low Storage Flags</div>
+                            <div style="display:flex; gap:12px; align-items:center;">
+                                <div style="flex:1;"><div class="card-value" id="inventoryLowStorageCount">0</div><div class="card-annotation">Terminals with critically low disk space.</div></div>
+                                <canvas class="mini-pie" id="mini-lowStorage" width="72" height="72"></canvas>
+                            </div>
+                        </div>
+                        <div class="inventory-card inventory-card-action" data-filter="replacement" onclick="applyInventorySummaryFilter('replacement')" role="button">
+                            <div class="card-label">Replacement Recommended</div>
+                            <div style="display:flex; gap:12px; align-items:center;">
+                                <div style="flex:1;"><div class="card-value" id="inventoryReplacementCount">0</div><div class="card-annotation">Devices prioritized for replacement.</div></div>
+                                <canvas class="mini-pie" id="mini-replacement" width="72" height="72"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+                <div class="inventory-findings-panel">
+                    <div id="inventoryFindingsWrapper" class="table-frame-panel inventory-report-table hidden" style="margin-top: 0;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin:0 0 10px 0; gap:12px; flex-wrap:wrap;">
+                            <div>
+                                <h3 style="margin:0;">Inventory Findings</h3>
+                                <p id="inventoryFindingsSubtitle" class="inventory-findings-subtitle" style="margin:4px 0 0 0; color:#475569; font-size:13px;">Showing all systems in the selected branch scope.</p>
+                            </div>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <button type="button" class="add-btn" style="background:#16a34a; color:white; display:flex; align-items:center; gap:8px;" onclick="downloadInventoryFindings()"><i class="fas fa-download"></i> Download Findings</button>
+                                <button class="close-inventory-btn" onclick="closeInventoryFindings()" aria-label="Close Inventory Findings" title="Close findings"><i class="fas fa-times" style="margin-right:8px;"></i>Close</button>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Branch</th>
+                                        <th>Station</th>
+                                        <th>User</th>
+                                        <th>Health</th>
+                                        <th>Free Space</th>
+                                        <th>CPU Temp</th>
+                                        <th>State</th>
+                                        <th>Reason</th>
+                                        <th>Alert Details</th>
+                                        <th>Recommended Fix</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="inventoryReportBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="systemNoticeContainer" class="system-notice-container"></div>
+
+    <div id="staffProfileModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="staffProfileTitle">
+        <div class="staff-profile-modal">
+            <button class="modal-close-button" onclick="closeStaffProfileModal()" aria-label="Close staff profile modal"><i class="fas fa-times"></i></button>
+            <div class="staff-profile-hero">
+                <div class="staff-profile-avatar" id="staffProfileAvatar">
+                    <img src="" alt="Staff Member" />
+                </div>
+                <div class="staff-profile-hero-content">
+                    <h3 id="staffProfileTitle">Staff Profile</h3>
+                    <p id="staffProfileRole" class="staff-profile-role">IT Specialist</p>
+                    <div class="staff-profile-status" id="staffProfileStatus">Standby</div>
+                </div>
+            </div>
+            <div class="staff-profile-content">
+                <p id="staffProfileSummary" class="staff-profile-summary">No bio available yet. Update your About Me using the IT Tracker form.</p>
+                <div class="staff-contact-group">
+                    <div class="staff-contact-item"><i class="fas fa-phone"></i> <span id="staffProfilePhone">Phone not set</span></div>
+                    <div class="staff-contact-item"><i class="fas fa-envelope"></i> <span id="staffProfileEmail">Email not set</span></div>
+                    <div class="staff-contact-item"><i class="fas fa-map-marker-alt"></i> <span id="staffProfileLocation">Location not set</span></div>
+                </div>
+                <div id="staffProfileLinks" class="staff-link-list"></div>
+                <div class="staff-modal-actions">
+                    <a id="staffEmailLink" href="#" class="staff-email-button hidden" onclick="handleStaffEmailClick(event)"><i class="fas fa-envelope"></i> Email me</a>
+                    <button type="button" class="add-btn" onclick="openStaffFeedbackForm()" style="background: #2563eb; color: white; display: flex; align-items: center; gap: 8px;"><i class="fas fa-comment-dots"></i> Add Feedback</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="staffFeedbackModalOverlay" class="modal-overlay hidden">
+        <div class="staff-profile-modal">
+            <button class="modal-close-button" onclick="closeStaffFeedbackForm()" aria-label="Close feedback form"><i class="fas fa-times"></i></button>
+            <div style="margin-bottom: 20px;">
+                <h3 style="margin: 0 0 4px 0;">Add Feedback for <span id="feedbackStaffName"></span></h3>
+                <p style="margin: 0; color: #64748b; font-size: 14px;">Share your feedback about this staff member</p>
+            </div>
+            <div class="form-element" id="feedbackBranchField">
+                <label for="feedbackBranchSelect">Branch</label>
+                <select id="feedbackBranchSelect">
+                    <option value="">Select branch giving feedback...</option>
+                </select>
+            </div>
+            <div class="form-element">
+                <label for="feedbackDepartmentInput">Department</label>
+                <input id="feedbackDepartmentInput" type="text" placeholder="Enter your department" />
+            </div>
+            <div class="form-element">
+                <label>Rating</label>
+                <div id="feedbackStarRating" class="star-rating" role="radiogroup" aria-label="Star rating">
+                    <button type="button" class="star" data-value="1" aria-label="1 star" onclick="setFeedbackStarRating(1)">★</button>
+                    <button type="button" class="star" data-value="2" aria-label="2 stars" onclick="setFeedbackStarRating(2)">★</button>
+                    <button type="button" class="star" data-value="3" aria-label="3 stars" onclick="setFeedbackStarRating(3)">★</button>
+                    <button type="button" class="star" data-value="4" aria-label="4 stars" onclick="setFeedbackStarRating(4)">★</button>
+                    <button type="button" class="star" data-value="5" aria-label="5 stars" onclick="setFeedbackStarRating(5)">★</button>
+                </div>
+                <input id="feedbackRatingInput" type="hidden" value="0" />
+            </div>
+            <div class="form-element">
+                <label id="feedbackQuestionLabel1">How satisfied are you with the assistance provided by the IT Support Specialist?</label>
+                <div class="feedback-radio-group feedback-two-choice">
+                    <label class="feedback-option"><input type="radio" name="feedbackQuestion1" value="Satisfied"><img class="feedback-gif" src="images/labubu-satisfied.gif" alt="Satisfied"/><span>Satisfied</span></label>
+                    <label class="feedback-option"><input type="radio" name="feedbackQuestion1" value="Dissatisfied"><img class="feedback-gif" src="images/labubu-dissatisfied.gif" alt="Dissatisfied"/><span>Dissatisfied</span></label>
+                </div>
+            </div>
+            <div class="form-element">
+                <label id="feedbackQuestionLabel2">Was your IT concern resolved in a timely and efficient manner?</label>
+                <div class="feedback-radio-group feedback-two-choice">
+                    <label class="feedback-option"><input type="radio" name="feedbackQuestion2" value="Satisfied"><img class="feedback-gif" src="images/labubu-satisfied.gif" alt="Satisfied"/><span>Satisfied</span></label>
+                    <label class="feedback-option"><input type="radio" name="feedbackQuestion2" value="Dissatisfied"><img class="feedback-gif" src="images/labubu-dissatisfied.gif" alt="Dissatisfied"/><span>Dissatisfied</span></label>
+                </div>
+            </div>
+            <div class="form-element">
+                <label id="feedbackQuestionLabel3">How would you rate the professionalism, courtesy, and communication of the IT Support Specialist?</label>
+                <div class="feedback-radio-group feedback-two-choice">
+                    <label class="feedback-option"><input type="radio" name="feedbackQuestion3" value="Satisfied"><img class="feedback-gif" src="images/labubu-satisfied.gif" alt="Satisfied"/><span>Satisfied</span></label>
+                    <label class="feedback-option"><input type="radio" name="feedbackQuestion3" value="Dissatisfied"><img class="feedback-gif" src="images/labubu-dissatisfied.gif" alt="Dissatisfied"/><span>Dissatisfied</span></label>
+                </div>
+            </div>
+            <div class="form-element">
+                <label for="feedbackCommentText">Feedback Message</label>
+                <textarea id="feedbackCommentText" placeholder="Share your feedback here..." style="min-height: 100px; resize: vertical;"></textarea>
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" class="btn-cancel" onclick="closeStaffFeedbackForm()">Cancel</button>
+                <button type="button" class="add-btn" onclick="submitStaffFeedback()" style="background: #2563eb; color: white;"><i class="fas fa-check"></i> Submit Feedback</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="itTrackerLogHistoryModal" class="modal-overlay hidden" onclick="if(event.target === this) closeITTrackerLogHistoryModal()">
+        <div class="staff-profile-modal">
+            <button class="modal-close-button" onclick="closeITTrackerLogHistoryModal()" aria-label="Close shift history modal"><i class="fas fa-times"></i></button>
+            <div style="margin-bottom: 20px;">
+                <h3 style="margin: 0 0 4px 0;">IT Shift Log History</h3>
+                <p style="margin: 0; color: #64748b; font-size: 14px;">This audit view is restricted to Ali. It shows start/end shift records for IT staff.</p>
+            </div>
+            <div id="itTrackerShiftHistoryContent" style="max-height: 58vh; overflow-y: auto; display: grid; gap: 14px;">
+                <!-- Shift log entries load here -->
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;">
+                <button type="button" class="btn-cancel" onclick="closeITTrackerLogHistoryModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="addStaffModalOverlay" class="modal-overlay hidden">
+        <div class="staff-profile-modal">
+            <button class="modal-close-button" onclick="closeAddStaffModal()" aria-label="Close add staff modal"><i class="fas fa-times"></i></button>
+            <div style="margin-bottom: 20px;">
+                <h3>Add New IT Staff</h3>
+                <p style="margin: 0; color: #64748b; font-size: 14px;">Create a new staff profile that will appear on the home page roster.</p>
+            </div>
+            <div class="form-element">
+                <label for="newStaffName">Full Name</label>
+                <input id="newStaffName" type="text" placeholder="e.g. Ana Reyes" />
+            </div>
+            <div class="form-element">
+                <label for="newStaffUsername">Username</label>
+                <input id="newStaffUsername" type="text" placeholder="e.g. BHF-AnaReyes" />
+                <small>Must start with <strong>BHF-</strong>.</small>
+            </div>
+            <div class="form-element">
+                <label for="newStaffRole">Role / Title</label>
+                <input id="newStaffRole" type="text" placeholder="e.g. Infrastructure Analyst" />
+            </div>
+            <div class="form-element">
+                <label for="newStaffImage">Profile Picture <span style="font-weight:400; color:#64748b;">(optional)</span></label>
+                <input id="newStaffImage" type="file" accept="image/*" />
+            </div>
+            <div class="form-element">
+                <label for="newStaffPhone">Phone Number</label>
+                <input id="newStaffPhone" type="text" placeholder="+63 917 000 0004" />
+            </div>
+            <div class="form-element">
+                <label for="newStaffEmail">Email Address</label>
+                <input id="newStaffEmail" type="email" placeholder="email@bhfgroup.local" />
+            </div>
+            <div class="form-element">
+                <label for="newStaffLink">Primary Link</label>
+                <input id="newStaffLink" type="url" placeholder="https://linkedin.com/in/username" />
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" class="btn-cancel" onclick="closeAddStaffModal()">Cancel</button>
+                <button type="button" class="add-btn" onclick="addNewITStaff()" style="background: #2563eb; color: white;"><i class="fas fa-plus"></i> Add Staff</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="updateProfileModalOverlay" class="modal-overlay hidden">
+        <div class="staff-profile-modal">
+            <button class="modal-close-button" onclick="closeUpdateProfileModal()" aria-label="Close update profile modal"><i class="fas fa-times"></i></button>
+            <div style="margin-bottom: 20px;">
+                <h3>Update Profile</h3>
+                <p style="margin: 0; color: #64748b; font-size: 14px;">Update your own profile details.</p>
+            </div>
+            <div class="form-element">
+                <label for="itTrackerNameInput">Full Name</label>
+                <input id="itTrackerNameInput" type="text" placeholder="e.g. Ana Reyes" />
+            </div>
+            <div class="form-element">
+                <label for="itTrackerRoleInput">Role / Title</label>
+                <input id="itTrackerRoleInput" type="text" placeholder="e.g. Infrastructure Analyst" />
+            </div>
+            <div class="form-element">
+                <label for="itTrackerAgeInput">Age</label>
+                <input id="itTrackerAgeInput" type="number" min="18" placeholder="e.g. 29" />
+            </div>
+            <div class="form-element">
+                <label for="itTrackerPhoneInput">Contact Number</label>
+                <input id="itTrackerPhoneInput" type="text" placeholder="+63 917 000 0001" />
+            </div>
+            <div class="form-element">
+                <label for="itTrackerEmailInput">Email Address</label>
+                <input id="itTrackerEmailInput" type="email" placeholder="email@bhfgroup.local" />
+            </div>
+            <div class="form-element">
+                <label for="itTrackerPasswordInput">Password</label>
+                <input id="itTrackerPasswordInput" type="password" placeholder="Enter new password (leave blank to keep)" />
+                <small>Default password for new accounts is <strong>123456</strong>. Keep blank to retain current password.</small>
+            </div>
+            <div class="form-element">
+                <label for="itTrackerLinkInput">Primary Link</label>
+                <input id="itTrackerLinkInput" type="url" placeholder="https://linkedin.com/in/username" />
+            </div>
+            <div class="form-element">
+                <label for="itTrackerPhotoInput">Profile Photo</label>
+                <input id="itTrackerPhotoInput" type="file" accept="image/*" />
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" class="btn-cancel" onclick="closeUpdateProfileModal()">Cancel</button>
+                <button type="button" class="add-btn" onclick="saveITProfileDetails()" style="background: #2563eb; color: white;"><i class="fas fa-check"></i> Save Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="feedbackQuestionModalOverlay" class="modal-overlay hidden">
+        <div class="staff-profile-modal">
+            <button class="modal-close-button" onclick="closeFeedbackQuestionModal()" aria-label="Close feedback question modal"><i class="fas fa-times"></i></button>
+            <div style="margin-bottom: 20px;">
+                <h3>Feedback Questions</h3>
+                <p style="margin: 0; color: #64748b; font-size: 14px;">Edit the questions used in the staff feedback flow.</p>
+            </div>
+            <div class="form-element">
+                <label for="feedbackQuestionInput1">Question 1</label>
+                <input id="feedbackQuestionInput1" type="text" placeholder="e.g. How effectively did the staff resolve the issue?" />
+            </div>
+            <div class="form-element">
+                <label for="feedbackQuestionInput2">Question 2</label>
+                <input id="feedbackQuestionInput2" type="text" placeholder="e.g. Did the staff communicate updates clearly?" />
+            </div>
+            <div class="form-element">
+                <label for="feedbackQuestionInput3">Question 3</label>
+                <input id="feedbackQuestionInput3" type="text" placeholder="e.g. Would you request this staff again?" />
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" class="btn-cancel" onclick="closeFeedbackQuestionModal()">Cancel</button>
+                <button type="button" class="add-btn" onclick="saveFeedbackQuestions()" style="background: #2563eb; color: white;"><i class="fas fa-save"></i> Save Questions</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="removeStaffModalOverlay" class="modal-overlay hidden">
+        <div class="confirm-modal-card">
+            <div class="confirm-modal-hero">
+                <div class="confirm-modal-icon"><i class="fas fa-user-minus"></i></div>
+                <div>
+                    <h3>Confirm Staff Removal</h3>
+                    <p>Removing this profile will permanently delete it from the IT roster and home page.</p>
+                </div>
+            </div>
+            <div class="confirm-modal-body">
+                <p id="removeStaffModalText">Are you sure you want to delete this IT staff profile?</p>
+            </div>
+            <div class="modal-action-row">
+                <button type="button" class="btn-cancel" onclick="closeRemoveStaffModal()">Cancel</button>
+                <button type="button" class="delete-btn" onclick="confirmRemoveCurrentITStaff()">Remove Staff</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="pinModalOverlay" class="modal-overlay hidden">
+        <div class="pin-modal-card">
+            <div class="lock-icon"><i class="fas fa-lock"></i></div>
+            <h3>Administrator Sign In</h3>
+            <p>Sign in with your administrator username and password to access configuration features.</p>
+            <div class="pin-input-wrapper">
+                <div style="display:flex; gap:8px; flex-direction:column; width:100%;">
+                    <input type="text" id="adminUsernameField" placeholder="Username (e.g. BHF-Ali)" onkeydown="if(event.key==='Enter') verifyAdminCredentials()" />
+                    <input type="password" id="adminPasswordField" placeholder="Password" onkeydown="if(event.key==='Enter') verifyAdminCredentials()" />
+                </div>
+            </div>
+            <div class="modal-action-row" style="display:flex; gap:8px; align-items:center;">
+                <button type="button" class="btn-cancel" onclick="closeAdminPinModal()">Cancel</button>
+                <button type="button" class="btn-confirm" onclick="verifyAdminCredentials()">Sign In</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="metricSummaryOverlay" class="modal-overlay hidden" onclick="if (event.target === this) closeMetricSummary()">
+        <div class="pc-editor-modal metric-summary-modal" onclick="event.stopPropagation()">
+            <div class="summary-panel-header">
+                <div class="summary-header-inner">
+                    <div class="summary-header-copy">
+                        <h3 id="metricSummaryTitle" class="summary-panel-title"></h3>
+                        <p id="metricSummarySubtitle" class="summary-panel-subtitle"></p>
+                    </div>
+                    <div class="summary-panel-actions">
+                        <button onclick="closeMetricSummary()" class="delete-btn">Close</button>
+                    </div>
+                </div>
+            </div>
+            <div id="metricSummaryContent" class="summary-panel-content"></div>
+        </div>
+    </div>
+
+    <div id="floatingUpdateModalOverlay" class="modal-overlay hidden">
+    <div class="pc-editor-modal" style="max-width: 480px; width: 100%;">
+        <h3 style="margin-bottom: 15px;"><i class="fas fa-sliders-h" style="color: #2563eb;"></i> Update PC Properties</h3>
+        <div id="floatingUpdateForm">
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                
+                <div style="display: flex; gap: 12px;">
+                    <div class="form-element" style="flex: 1;">
+                        <label style="font-weight: 600; font-size: 13px;">Target Facility Branch</label>
+                        <select id="modalBranchSelect" onchange="populateModalPcSelect()" style="width:100%; padding:8px; border-radius:4px; border:1px solid #cbd5e1;"></select>
+                    </div>
+                    <div class="form-element" style="flex: 1;">
+                        <label style="font-weight: 600; font-size: 13px;">Target Station Endpoint</label>
+                        <select id="modalPcSelect" onchange="loadSelectedPcDetailsForEditing()" style="width:100%; padding:8px; border-radius:4px; border:1px solid #cbd5e1;"></select>
+                    </div>
+                </div>
+                
+                <hr style="border: 0; border-top: 1px dashed #e2e8f0; margin: 5px 0;">
+                
+                <div style="display: flex; gap: 12px;">
+                    <div class="form-element" style="flex: 1;">
+                        <label style="font-weight: 600; font-size: 13px;">Operational Fleet State</label>
+                        <select id="modalPcState" style="width:100%; padding:8px; border-radius:4px; border:1px solid #cbd5e1;">
+                            <option value="Active">Active</option>
+                            <option value="Down">Down</option>
+                        </select>
+                    </div>
+                    <div class="form-element" style="flex: 1;">
+                        <label style="font-weight: 600; font-size: 13px;">Telemetric Health Status</label>
+                        <select id="modalHealth" style="width:100%; padding:8px; border-radius:4px; border:1px solid #cbd5e1;">
+                            <option value="Healthy">Healthy</option>
+                            <option value="Warning">Warning</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-element">
+                    <label style="font-weight: 600; font-size: 13px;">Processor Specification</label>
+                    <input type="text" id="modalProcessor" style="width:100%; padding:8px; border-radius:4px; border:1px solid #cbd5e1;">
+                </div>
+
+                <div style="display: flex; gap: 12px;">
+                    <div class="form-element" style="flex: 1;">
+                        <label style="font-weight: 600; font-size: 13px;">Hardware Vendor</label>
+                        <input type="text" id="modalBrand" placeholder="e.g., HP, Acer, ASUS" style="width:100%; padding:8px; border-radius:4px; border:1px solid #cbd5e1;">
+                    </div>
+                    <div class="form-element" style="flex: 1;">
+                        <label style="font-weight: 600; font-size: 13px;">Storage Type</label>
+                        <input type="text" id="modalStorage" placeholder="e.g., SSD, NVMe SSD" style="width:100%; padding:8px; border-radius:4px; border:1px solid #cbd5e1;">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 12px;">
+                    <div class="form-element" style="flex: 1;">
+                        <label style="font-weight: 600; font-size: 13px;">Capacity</label>
+                        <input type="text" id="modalCapacity" placeholder="e.g., 256GB, 1T" style="width:100%; padding:8px; border-radius:4px; border:1px solid #cbd5e1;">
+                    </div>
+                    <div class="form-element" style="flex: 1;">
+                        <label style="font-weight: 600; font-size: 13px;">Free Space</label>
+                        <input type="text" id="modalFreeSpace" placeholder="e.g., 440GB, 85GB" style="width:100%; padding:8px; border-radius:4px; border:1px solid #cbd5e1; font-weight: 700;">
+                    </div>
+                </div>
+
+                <div class="form-element">
+                    <label style="font-weight: 600; font-size: 13px;">Chassis Temperature (°C)</label>
+                    <input type="number" id="modalPcTemp" style="width:100%; padding:8px; border-radius:4px; border:1px solid #cbd5e1;">
+                </div>
+            </div>
+
+            <div class="modal-action-row" style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="btn-cancel" onclick="closeFloatingUpdateOverlay()">Cancel</button>
+                <button type="button" onclick="commitFloatingPcUpdate()" style="background-color: #2563eb; color: white; font-weight: 600; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Commit Pipeline Update</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <div id="deletePcModalOverlay" class="modal-overlay hidden">
+        <div class="pc-editor-modal" style="max-width: 520px; width: 100%;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                <div>
+                    <h3 style="margin:0; display:flex; align-items:center; gap:10px;"><i class="fas fa-trash-alt" style="color:#dc2626;"></i> Priority Delete Console</h3>
+                    <p style="margin:4px 0 0 0; color:#64748b; font-size:13px;">Select one or more workstations to remove from the inventory roster.</p>
+                </div>
+                <button class="btn-cancel" style="padding:8px 12px;" onclick="closeDeletePcOverlay()">Close</button>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+                <div class="form-element" style="flex:1; min-width:200px; margin:0;">
+                    <label style="font-weight: 600; font-size: 13px;">Delete Target Branch</label>
+                    <select id="deleteBranchSelect" onchange="populateDeletePcList()" style="width:100%; padding:8px; border-radius:4px; border:1px solid #cbd5e1;"></select>
+                </div>
+                <button type="button" class="btn-link-action" style="margin-top:26px;" onclick="toggleSelectAllDeletePcs()"><i class="fas fa-check-square"></i> Toggle All</button>
+            </div>
+            <div id="deletePcListContainer" style="max-height: 320px; overflow-y:auto; border:1px solid #cbd5e1; border-radius: 12px; padding: 16px; background:#f8fafc;">
+                <p style="color:#64748b; font-size:13px; margin:0;">Choose the PCs to remove from the selected branch.</p>
+            </div>
+            <div class="modal-action-row" style="margin-top: 20px; display: flex; justify-content: space-between; gap: 10px;">
+                <button type="button" class="btn-cancel" onclick="closeDeletePcOverlay()">Cancel</button>
+                <button type="button" class="btn-danger" style="background:#dc2626; color:white; border:none; padding:10px 18px; border-radius:8px;" onclick="executeDeleteSelectedPcs()"><i class="fas fa-trash"></i> Delete Selected PCs</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Branch Issues Editor Modal (Admins only, opened after PIN) -->
+    <div id="branchIssueEditorOverlay" class="modal-overlay hidden">
+        <div class="pc-editor-modal" style="max-width:800px; width: 95%; position:relative;">
+            <button aria-label="Close" class="btn-cancel" style="position:absolute; top:12px; right:12px; width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center;" onclick="closeBranchIssueEditor()">
+                <i class="fas fa-times"></i>
+            </button>
+            <h3 id="branchIssueEditorTitle" style="margin-bottom:6px; display:flex; align-items:center; gap:10px;"><i class="fas fa-tools" style="color:#dc2626;"></i> Branch Issue Editor</h3>
+            <div id="branchIssueEditorContent" style="max-height:520px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding-top:6px;"></div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:12px;">
+                <button type="button" class="edit-btn" onclick="closeBranchIssueEditor()">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="inventoryOverlay" class="inventory-overlay hidden" onclick="closeInventoryFindings()"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>

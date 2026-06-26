@@ -1,0 +1,13 @@
+<svg width="320" height="320" viewBox="0 0 320 320" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gp" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffb703" />
+      <stop offset="100%" stop-color="#fb8500" />
+    </linearGradient>
+  </defs>
+  <rect width="320" height="320" rx="40" fill="#0f172a" />
+  <circle cx="160" cy="120" r="82" fill="url(#gp)" opacity="0.96" />
+  <path d="M160 100 C145 100 130 115 130 130 C130 145 145 160 160 160 C175 160 190 145 190 130 C190 115 175 100 160 100 Z M160 160 V190" fill="#081a2c" stroke="#081a2c" stroke-width="10" stroke-linecap="round" />
+  <rect x="132" y="190" width="56" height="40" rx="16" fill="#081a2c" />
+  <text x="160" y="285" text-anchor="middle" fill="#ffffff" font-family="Inter, sans-serif" font-size="28" font-weight="800">PAWNSHOP</text>
+</svg>
