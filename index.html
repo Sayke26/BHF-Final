@@ -10,6 +10,22 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script>
+        // Optional: provide your Firebase web app configuration here.
+        // Create a Firebase project and Firestore database, then paste your values.
+        // Expose as `window.firebaseConfig` so other scripts can detect it.
+        window.firebaseConfig = {
+  apiKey: "AIzaSyAcIjLw8y1whnArYDaiDDU_iT6B0CT2sX0",
+  authDomain: "bhf1-7e3d8.firebaseapp.com",
+  projectId: "bhf1-7e3d8",
+  storageBucket: "bhf1-7e3d8.firebasestorage.app",
+  messagingSenderId: "354771048433",
+  appId: "1:354771048433:web:090af891b99f47396d9650",
+  measurementId: "G-YZBX84JP8H"
+    };
+    </script>
 </head>
 <body>
 
@@ -24,7 +40,30 @@
             </div>
         </div>
         <nav class="nav-links">
-            <button id="legacyAdminNavBtn" onclick="handleAdministrationTap()" class="admin-nav-btn"><i class="fas fa-archive"></i> Administration</button>
+            <button id="legacyAdminNavBtn" class="admin-nav-btn" onclick="window.open('https://website-3454c1c0.tzf.yar.mybluehost.me/','_blank')"><i class="fas fa-ticket-alt"></i> Submit A Ticket</button>
+            <button id="adminSummaryBtn" onclick="showOverallSummary()" class="admin-nav-btn hidden"><i class="fas fa-network-wired"></i> Admin</button>
+            <div id="adminProfileWrapper" class="profile-menu-wrapper hidden">
+                <button id="adminProfileBtn" class="profile-menu-btn" type="button" onclick="toggleAdminProfileMenu(event)">
+                    <div id="adminProfileAvatar" class="profile-menu-avatar">AD</div>
+                    <span id="adminProfileName">Admin</span>
+                    <i class="fas fa-chevron-down profile-menu-chevron"></i>
+                </button>
+                <div id="adminProfileDropdown" class="profile-dropdown hidden" role="menu" aria-label="Admin actions">
+                    <div class="profile-dropdown-header">
+                        <div id="adminProfileDropdownAvatar" class="profile-menu-avatar"></div>
+                        <div>
+                            <h4 id="adminProfileDropdownName">Admin</h4>
+                            <p id="adminProfileDropdownRole">Administrator</p>
+                        </div>
+                    </div>
+                    <div class="profile-dropdown-actions">
+                        <button type="button" onclick="openUpdateProfileModal(); closeAdminProfileMenu();"><span>Update Profile</span><i class="fas fa-user-edit"></i></button>
+                        <button type="button" onclick="startShiftForSelectedStaff(); closeAdminProfileMenu();"><span>Start Shift</span><i class="fas fa-play-circle"></i></button>
+                        <button type="button" onclick="endShiftForSelectedStaff(); closeAdminProfileMenu();"><span>End Shift</span><i class="fas fa-power-off"></i></button>
+                        <button type="button" onclick="logoutAdmin(); closeAdminProfileMenu();"><span>Log Out</span><i class="fas fa-sign-out-alt"></i></button>
+                    </div>
+                </div>
+            </div>
         </nav>
     </header>
 
@@ -99,19 +138,24 @@
 
             <div id="profileGrid" class="profile-grid"></div>
 
-            <div class="home-hero">
-                <div id="bhfMapContainer" class="hero-visual hero-map" style="position: relative; z-index: 10;"></div>
-            </div>
-
             <div class="branch-map-toolbar">
                 <div class="branch-search-box">
-                    <label for="branchSearchInput"><i class="fas fa-search"></i> Search branches</label>
-                    <input id="branchSearchInput" type="search" placeholder="Search branch name or address..." oninput="filterHomeBranches(this.value)" />
+                    <label for="homeBranchSelect"><i class="fas fa-map-marker-alt"></i> Select a branch</label>
+                    <div class="branch-select-row">
+                        <select id="homeBranchSelect" onchange="handleHomeBranchSelection(this.value)">
+                            <option value="">Select branch to view...</option>
+                        </select>
+                        <button id="homeBranchResetBtn" type="button" onclick="resetHomeBranchSelection()">Reset</button>
+                    </div>
                 </div>
                 <div class="branch-map-legend">
                     <div><span class="legend-chip branch-chip"></span>Branch Site</div>
                     <div><span class="legend-chip staff-chip"></span>Live IT Team</div>
                 </div>
+            </div>
+
+            <div class="home-hero">
+                <div id="bhfMapContainer" class="hero-visual hero-map" style="position: relative; z-index: 10;"></div>
             </div>
             <div id="homeBranchList" class="home-branch-list"></div>
 
@@ -171,88 +215,6 @@
             </div>
         </section>
 
-        <section id="branchesPage" class="page hidden">
-            <div class="hero-banner">
-                <h2>Branch Workstation Infrastructure</h2>
-                <p>Real-time terminal telemetry diagnostic streams and active site asset registries across the regional infrastructure cluster.</p>
-            </div>
-            <div class="split-layout">
-                <div class="main-column">
-                    <h3>Branch Workstation Infrastructure</h3>
-                    <p style="color:#64748b; margin-top:-10px; margin-bottom:20px; font-size:14px;">
-                        Select any branch profile below to actively monitor computer terminals, health states, tracking logs, and thermodynamic metrics.
-                    </p>
-                    <div class="branch-grid" id="branchGrid"></div>
-                </div>
-            </div>
-        </section>
-
-        <section id="dashboardPage" class="page hidden">
-            <div class="section-title-bar">
-                <div>
-                    <span class="breadcrumb-tag">Localized Infrastructure Sheet</span>
-                    <h2 id="selectedBranchTitle">Branch Workspace Diagnostics</h2>
-                </div>
-                <button class="edit-btn" style="background:#475569; color: white;" onclick="showOverallSummary()"><i class="fas fa-chevron-left"></i> Back to Home</button>
-            </div>
-
-            <div class="metrics-card-grid">
-                <div class="metric-card card-blue">
-                    <div class="card-icon"><i class="fas fa-microchip"></i></div>
-                    <div class="card-info"><h4 id="totalPCs">0</h4><p>Total Nodes Allocated</p></div>
-                </div>
-                <div class="metric-card card-green">
-                    <div class="card-icon"><i class="fas fa-check-circle"></i></div>
-                    <div class="card-info"><h4 id="healthyPCs">0</h4><p>Healthy Operations</p></div>
-                </div>
-                <div class="metric-card card-orange">
-                    <div class="card-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                    <div class="card-info"><h4 id="warningPCs">0</h4><p>Warning Indicators</p></div>
-                </div>
-                <div class="metric-card card-red">
-                    <div class="card-icon"><i class="fas fa-radiation"></i></div>
-                    <div class="card-info"><h4 id="criticalPCs">0</h4><p>Critical Urgent Actions</p></div>
-                </div>
-            </div>
-
-            <div class="dashboard-split-matrix" style="grid-template-columns: 1.2fr 0.8fr;">
-                <div class="table-frame-panel">
-                    <h3>Monitored Station Cluster Log</h3>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Station Name Tag</th>
-                                    <th>Operational State</th>
-                                    <th>Status Level</th>
-                                    <th>Processor (CPU)</th>
-                                    <th>Hardware Vendor</th>
-                                    <th>Storage Type</th>
-                                    <th>Capacity</th>
-                                    <th>Free Space</th>
-                                    <th>Chassis Temp</th>
-                                    <th>CPU Core Temp</th>
-                                    <th>Primary User</th>
-                                </tr>
-                            </thead>
-                            <tbody id="branchTableBody"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div class="analytical-sidebar-panel">
-                    <div class="chart-box">
-                        <h3>Distribution Metrics Matrix</h3>
-                        <div class="chart-canvas-wrapper"><canvas id="branchChart"></canvas></div>
-                    </div>
-                    <div class="local-notes-box">
-                        <h3><i class="far fa-comments"></i> Logged Station Event Notes</h3>
-                        <div id="branchRemarks" class="remarks-scroll-stack"></div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
         <section id="adminPage" class="page hidden">
             <div class="section-title-bar">
                 <div>
@@ -268,11 +230,24 @@
                 </div>
                 <div style="display: flex; gap: 12px; align-items: center;">
                     <button class="add-btn" style="background: #16a34a; color: white;" onclick="openAddPcForm()"><i class="fas fa-plus"></i> Add PC</button>
+<<<<<<< HEAD
                     <button class="btn-danger" style="background: #dc2626; color: white; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer;" onclick="openDeletePcOverlay()"><i class="fas fa-trash-alt"></i> Delete PC</button>
                     <button class="add-btn" style="background: #2563eb; color: white;" onclick="openFloatingUpdateOverlay()"><i class="fas fa-edit"></i> Update PC</button>
+=======
+>>>>>>> 7a751e8 (Expose firebase config on window + responsive hero/map height)
                     <button class="edit-btn" style="background: #475569; color: white;" onclick="toggleHistoryPane()"><i class="fas fa-history"></i> Change History</button>
                     <button class="btn-danger" style="background: #ef4444; color: white; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer;" onclick="logoutAdmin()"><i class="fas fa-sign-out-alt"></i> Logout</button>
                 </div>
+            </div>
+
+            <div class="branch-monitoring-section" style="margin-bottom: 30px;">
+                <div class="section-subheader" style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px;">
+                    <div>
+                        <h3>Branch Workstation Infrastructure</h3>
+                        <p style="color:#64748b; margin:0; font-size:14px;">Select any branch profile below to monitor terminals, health, and tracking logs from a single admin console.</p>
+                    </div>
+                </div>
+                <div class="branch-grid" id="branchGrid"></div>
             </div>
 
             <div id="pcFormContainer" class="form-container hidden">
@@ -371,6 +346,79 @@
                 <div class="table-frame-panel">
                     <h3>Active Transmissions Directory</h3>
                     <div id="remarksList" class="remarks-management-scroll-stack"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="dashboardPage" class="page hidden">
+            <div class="section-title-bar">
+                <div>
+                    <span class="breadcrumb-tag">Branch Diagnostics</span>
+                    <h2 id="selectedBranchTitle">Branch Workspace Diagnostics</h2>
+                    <p>Monitor selected branch terminal health, storage, temperature, and operational status.</p>
+                </div>
+                <button class="edit-btn" style="background:#475569; color:white;" onclick="showAdminPanel()"><i class="fas fa-chevron-left"></i> Back to Admin</button>
+            </div>
+
+            <div class="metrics-card-grid">
+                <div class="metric-card card-blue">
+                    <div class="card-icon"><i class="fas fa-microchip"></i></div>
+                    <div class="card-info"><h4 id="totalPCs">0</h4><p>Total Nodes Allocated</p></div>
+                </div>
+                <div class="metric-card card-green">
+                    <div class="card-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="card-info"><h4 id="healthyPCs">0</h4><p>Healthy Operations</p></div>
+                </div>
+                <div class="metric-card card-orange">
+                    <div class="card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="card-info"><h4 id="warningPCs">0</h4><p>Warning Indicators</p></div>
+                </div>
+                <div class="metric-card card-red">
+                    <div class="card-icon"><i class="fas fa-radiation"></i></div>
+                    <div class="card-info"><h4 id="criticalPCs">0</h4><p>Critical Urgent Actions</p></div>
+                </div>
+            </div>
+
+            <div class="dashboard-split-matrix" style="grid-template-columns: 1.2fr 0.8fr; gap: 24px;">
+                <div class="table-frame-panel">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+                        <h3>Monitored Station Cluster Log</h3>
+                        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                            <button class="btn-danger" style="background: #dc2626; color:white; border:none; padding: 10px 16px; border-radius: 10px; cursor:pointer;" onclick="openDeletePcOverlay()"><i class="fas fa-trash-alt"></i> Delete PC</button>
+                            <button class="add-btn" style="background: #2563eb; color:white; padding: 10px 16px; border-radius: 10px;" onclick="openFloatingUpdateOverlay()"><i class="fas fa-edit"></i> Update PC</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Station Name Tag</th>
+                                    <th>Operational State</th>
+                                    <th>Status Level</th>
+                                    <th>Processor (CPU)</th>
+                                    <th>Hardware Vendor</th>
+                                    <th>Storage Type</th>
+                                    <th>Capacity</th>
+                                    <th>Free Space</th>
+                                    <th>Chassis Temp</th>
+                                    <th>CPU Core Temp</th>
+                                    <th>Primary User</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="branchTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="analytical-sidebar-panel">
+                    <div class="chart-box">
+                        <h3>Branch Health Distribution</h3>
+                        <div class="chart-canvas-wrapper"><canvas id="branchChart"></canvas></div>
+                    </div>
+                    <div class="local-notes-box">
+                        <h3><i class="far fa-comments"></i> Terminal Event Notes</h3>
+                        <div id="branchRemarks" class="remarks-scroll-stack"></div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -706,7 +754,11 @@
                                 <h4>Deployment Status</h4>
                                 <p>Use this area for live updates. Profile details are maintained separately.</p>
                             </div>
+<<<<<<< HEAD
                             <div id="itTrackerStatusPill" class="status-pill status-pill-standby"><i class="fas fa-circle"></i> Standby</div>
+=======
+                            <div id="itTrackerStatusPill" class="status-pill status-pill-offline"><i class="fas fa-circle"></i> On call</div>
+>>>>>>> 7a751e8 (Expose firebase config on window + responsive hero/map height)
                         </div>
                         <div class="form-element">
                             <label for="itTrackerStaffSelect">Select IT Staff Member</label>
@@ -1038,7 +1090,11 @@
                 <div class="staff-profile-hero-content">
                     <h3 id="staffProfileTitle">Staff Profile</h3>
                     <p id="staffProfileRole" class="staff-profile-role">IT Specialist</p>
+<<<<<<< HEAD
                     <div class="staff-profile-status" id="staffProfileStatus">Standby</div>
+=======
+                    <div class="staff-profile-status" id="staffProfileStatus">On call</div>
+>>>>>>> 7a751e8 (Expose firebase config on window + responsive hero/map height)
                 </div>
             </div>
             <div class="staff-profile-content">
@@ -1051,7 +1107,14 @@
                 <div id="staffProfileLinks" class="staff-link-list"></div>
                 <div class="staff-modal-actions">
                     <a id="staffEmailLink" href="#" class="staff-email-button hidden" onclick="handleStaffEmailClick(event)"><i class="fas fa-envelope"></i> Email me</a>
+<<<<<<< HEAD
                     <button type="button" class="add-btn" onclick="openStaffFeedbackForm()" style="background: #2563eb; color: white; display: flex; align-items: center; gap: 8px;"><i class="fas fa-comment-dots"></i> Add Feedback</button>
+=======
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <button type="button" class="add-btn" onclick="openStaffFeedbackForm()" style="background: #2563eb; color: white; display: flex; align-items: center; gap: 8px;"><i class="fas fa-comment-dots"></i> Add Feedback</button>
+                        <button id="staffAdminLoginBtn" type="button" class="secondary-btn" onclick="(function(){ window.pendingAdminAction = 'showSummary'; document.getElementById('pinModalOverlay').classList.remove('hidden'); const userField = document.getElementById('adminUsernameField'); const passField = document.getElementById('adminPasswordField'); if (userField) { userField.value = ''; userField.focus(); } if (passField) passField.value = ''; })()" style="display: flex; align-items: center; gap:8px; white-space:nowrap;"><i class="fas fa-user-lock"></i> Admin Login</button>
+                    </div>
+>>>>>>> 7a751e8 (Expose firebase config on window + responsive hero/map height)
                 </div>
             </div>
         </div>
