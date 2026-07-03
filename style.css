@@ -56,6 +56,22 @@ body { background-color: var(--bg-light); color: var(--text-main); line-height: 
 .profile-dropdown-actions button:hover { background: rgba(255,255,255,0.08); }
 .profile-dropdown-actions button + button { border-top: 1px solid rgba(255,255,255,0.06); }
 
+/* Remote sync status indicator */
+.remote-sync-status {
+    position: absolute;
+    right: 20px;
+    top: 18px;
+    background: rgba(255,255,255,0.06);
+    color: #e2e8f0;
+    padding: 8px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.remote-sync-status.sync-ok { background: linear-gradient(90deg,#16a34a,#059669); color: #fff; border-color: rgba(0,0,0,0.08); }
+.remote-sync-status.sync-error { background: linear-gradient(90deg,#ef4444,#f97316); color: #fff; border-color: rgba(0,0,0,0.08); }
+.remote-sync-status.sync-offline { background: linear-gradient(90deg,#64748b,#475569); color: #fff; border-color: rgba(0,0,0,0.08); }
+
 /* Hide top nav — using side menu instead */
 .nav-links { display: flex; gap: 12px; }
 

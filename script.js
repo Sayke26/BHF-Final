@@ -48,8 +48,34 @@ function isRemoteSyncActive() {
     return Boolean(firestoreDb);
 }
 
+// BroadcastChannel fallback for cross-tab sync when Firestore is unavailable
+let bhfBroadcast = null;
+try {
+    bhfBroadcast = new BroadcastChannel('bhf-sync');
+    bhfBroadcast.onmessage = (ev) => {
+        try {
+            const msg = ev.data || {};
+            if (msg.type === 'profiles-updated' && msg.profiles) {
+                // avoid overwriting if we're currently applying remote sync
+                if (!remoteSyncApplying) {
+                    persistStaffProfiles(msg.profiles, { skipRemote: true });
+                    renderITStaffProfileGrid();
+                    updateBHFMapStaffMarkers();
+                }
+            }
+            if (msg.type === 'status') {
+                updateRemoteSyncStatusDisplay(msg.status, msg.info || '');
+            }
+        } catch (e) { console.error('BroadcastChannel handler error', e); }
+    };
+} catch (e) {
+    bhfBroadcast = null;
+}
+
 async function initializeRemoteSync() {
     if (!isFirebaseConfigured() || typeof firebase === 'undefined') {
+        console.warn('Firebase not configured or library missing.');
+        updateRemoteSyncStatusDisplay('offline', 'Firebase not loaded');
         return;
     }
 
@@ -89,8 +115,10 @@ async function initializeRemoteSync() {
                 }
             }
         }
+        updateRemoteSyncStatusDisplay('ok', 'Connected to Firestore');
     } catch (e) {
         console.error('Failed to initialize remote sync:', e);
+        updateRemoteSyncStatusDisplay('error', e.message || String(e));
     }
 }
 
@@ -122,7 +150,26 @@ async function syncProfilesToRemote(profiles) {
         await docRef.set({ profiles }, { merge: true });
     } catch (e) {
         console.error('Failed to sync profiles to remote:', e);
+        updateRemoteSyncStatusDisplay('error', e.message || String(e));
     }
+}
+
+function broadcastProfilesUpdate(profiles) {
+    try {
+        if (bhfBroadcast) bhfBroadcast.postMessage({ type: 'profiles-updated', profiles });
+    } catch (e) { /* ignore */ }
+}
+
+function updateRemoteSyncStatusDisplay(status, info) {
+    try {
+        const el = document.getElementById('remoteSyncStatus');
+        if (!el) return;
+        el.classList.remove('sync-ok', 'sync-error', 'sync-offline');
+        if (status === 'ok') el.classList.add('sync-ok');
+        else if (status === 'error') el.classList.add('sync-error');
+        else el.classList.add('sync-offline');
+        el.textContent = `Sync: ${status}` + (info ? ` · ${info}` : '');
+    } catch (e) { console.warn(e); }
 }
 
 function populateHomeBranchSelect() {
@@ -570,16 +617,16 @@ function autoRepairStoredProfiles(storedProfiles) {
     return needsRepair ? repaired : storedProfiles;
 }
 
-<<<<<<< HEAD
-function persistStaffProfiles(profiles) {
-    localStorage.setItem('itStaffProfiles', JSON.stringify(profiles));
-=======
 function persistStaffProfiles(profiles, options = {}) {
     localStorage.setItem('itStaffProfiles', JSON.stringify(profiles));
+    try {
+        if (bhfBroadcast) bhfBroadcast.postMessage({ type: 'profiles-updated', profiles });
+    } catch (e) { /* ignore */ }
     if (!options.skipRemote && !remoteSyncApplying && isRemoteSyncActive()) {
         syncProfilesToRemote(profiles);
+    } else {
+        updateRemoteSyncStatusDisplay(isRemoteSyncActive() ? 'ok' : 'offline', isRemoteSyncActive() ? 'Synced' : 'Local only');
     }
->>>>>>> 517c3e3 (Include local script.js changes)
 }
 
 function getCurrentAdminKey() {
