@@ -32,6 +32,124 @@ let staffMarkers = {};
 let staffControl = null;
 let visibleBranchNames = [];
 
+const FIREBASE_REMOTE_DOC = {
+    collection: 'sharedState',
+    doc: 'itStaffProfiles'
+};
+let firebaseApp = null;
+let firestoreDb = null;
+let remoteSyncApplying = false;
+
+function isFirebaseConfigured() {
+    return Boolean(window.firebaseConfig && window.firebaseConfig.projectId && window.firebaseConfig.apiKey);
+}
+
+function isRemoteSyncActive() {
+    return Boolean(firestoreDb);
+}
+
+async function initializeRemoteSync() {
+    if (!isFirebaseConfigured() || typeof firebase === 'undefined') {
+        return;
+    }
+
+    try {
+        if (!firebase.apps.length) {
+            firebaseApp = firebase.initializeApp(window.firebaseConfig);
+        } else {
+            firebaseApp = firebase.app();
+        }
+        firestoreDb = firebase.firestore();
+
+        const docRef = firestoreDb.collection(FIREBASE_REMOTE_DOC.collection).doc(FIREBASE_REMOTE_DOC.doc);
+        docRef.onSnapshot((snapshot) => {
+            if (!snapshot.exists) return;
+            const remoteData = snapshot.data();
+            if (!remoteData || typeof remoteData.profiles !== 'object') return;
+
+            remoteSyncApplying = true;
+            try {
+                syncLocalStaffProfiles(remoteData.profiles);
+            } finally {
+                remoteSyncApplying = false;
+            }
+        }, (error) => {
+            console.error('Firebase shift sync error:', error);
+        });
+
+        const snapshot = await docRef.get();
+        if (snapshot.exists) {
+            const remoteData = snapshot.data();
+            if (remoteData && typeof remoteData.profiles === 'object') {
+                remoteSyncApplying = true;
+                try {
+                    syncLocalStaffProfiles(remoteData.profiles);
+                } finally {
+                    remoteSyncApplying = false;
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Failed to initialize remote sync:', e);
+    }
+}
+
+function syncLocalStaffProfiles(remoteProfiles) {
+    if (!remoteProfiles || typeof remoteProfiles !== 'object') {
+        return;
+    }
+
+    const currentProfiles = getStoredStaffProfiles();
+    const remoteAsJson = JSON.stringify(remoteProfiles || {});
+    const currentAsJson = JSON.stringify(currentProfiles || {});
+    if (remoteAsJson === currentAsJson) {
+        return;
+    }
+
+    persistStaffProfiles(remoteProfiles, { skipRemote: true });
+    renderITStaffProfileGrid();
+    updateBHFMapStaffMarkers();
+    populateITTrackerControls();
+    updateITTrackerFields();
+    toastNotice('success', 'Live sync active', 'Staff and shift data were updated from shared state.');
+}
+
+async function syncProfilesToRemote(profiles) {
+    if (!firestoreDb || !profiles || typeof profiles !== 'object') return;
+
+    try {
+        const docRef = firestoreDb.collection(FIREBASE_REMOTE_DOC.collection).doc(FIREBASE_REMOTE_DOC.doc);
+        await docRef.set({ profiles }, { merge: true });
+    } catch (e) {
+        console.error('Failed to sync profiles to remote:', e);
+    }
+}
+
+function populateHomeBranchSelect() {
+    const select = document.getElementById('homeBranchSelect');
+    if (!select) return;
+    select.innerHTML = '<option value="">Select branch to view...</option>' +
+        Object.keys(BRANCH_LOCATIONS)
+            .map(branch => `<option value="${escapeHtml(branch)}">${escapeHtml(branch)}</option>`)
+            .join('');
+}
+
+function handleHomeBranchSelection(branchName) {
+    if (!branchName) return;
+    focusBranchOnMap(branchName);
+}
+
+function resetHomeBranchSelection() {
+    const select = document.getElementById('homeBranchSelect');
+    if (select) {
+        select.value = '';
+    }
+    if (!bhfMap) return;
+    const bounds = L.latLngBounds(Object.values(BRANCH_LOCATIONS).map(location => [location.lat, location.lng]));
+    if (bounds.isValid()) {
+        bhfMap.fitBounds(bounds.pad(0.15));
+    }
+}
 const DEFAULT_FEEDBACK_QUESTIONS = [
     "How satisfied are you with the assistance provided by the IT Support Specialist?",
     "Was your IT concern resolved in a timely and efficient manner?",
@@ -452,14 +570,74 @@ function autoRepairStoredProfiles(storedProfiles) {
     return needsRepair ? repaired : storedProfiles;
 }
 
+<<<<<<< HEAD
 function persistStaffProfiles(profiles) {
     localStorage.setItem('itStaffProfiles', JSON.stringify(profiles));
+=======
+function persistStaffProfiles(profiles, options = {}) {
+    localStorage.setItem('itStaffProfiles', JSON.stringify(profiles));
+    if (!options.skipRemote && !remoteSyncApplying && isRemoteSyncActive()) {
+        syncProfilesToRemote(profiles);
+    }
+>>>>>>> 517c3e3 (Include local script.js changes)
 }
 
 function getCurrentAdminKey() {
     return adminUserKey || sessionStorage.getItem('adminUserKey') || null;
 }
 
+<<<<<<< HEAD
+=======
+function getCurrentAdminProfile() {
+    const currentKey = getCurrentAdminKey();
+    if (!currentKey) return null;
+    const profiles = getStoredStaffProfiles();
+    return profiles[currentKey] || null;
+}
+
+function updateAdminProfileMenu() {
+    const profileBtnName = document.getElementById('adminProfileName');
+    const dropdownName = document.getElementById('adminProfileDropdownName');
+    const dropdownRole = document.getElementById('adminProfileDropdownRole');
+    const avatar = document.getElementById('adminProfileAvatar');
+    const dropdownAvatar = document.getElementById('adminProfileDropdownAvatar');
+    const profile = getCurrentAdminProfile();
+
+    if (profileBtnName) profileBtnName.textContent = profile?.name || 'Admin';
+    if (dropdownName) dropdownName.textContent = profile?.name || 'Administrator';
+    if (dropdownRole) dropdownRole.textContent = profile?.role || 'Administrator';
+
+    const initials = profile?.name ? profile.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase() : 'AD';
+    if (avatar) {
+        if (profile?.image) {
+            avatar.innerHTML = `<img src="${profile.image}" alt="${profile.name}" />`;
+        } else {
+            avatar.textContent = initials;
+            avatar.style.backgroundImage = 'none';
+        }
+    }
+    if (dropdownAvatar) {
+        if (profile?.image) {
+            dropdownAvatar.innerHTML = `<img src="${profile.image}" alt="${profile.name}" />`;
+        } else {
+            dropdownAvatar.textContent = initials;
+            dropdownAvatar.style.backgroundImage = 'none';
+        }
+    }
+}
+
+function toggleAdminProfileMenu(event) {
+    event.stopPropagation();
+    const dropdown = document.getElementById('adminProfileDropdown');
+    if (!dropdown) return;
+    const isHidden = dropdown.classList.contains('hidden');
+    closeAdminProfileMenu();
+    if (isHidden) {
+        dropdown.classList.remove('hidden');
+    }
+}
+
+>>>>>>> 517c3e3 (Include local script.js changes)
 function canDeleteAuditHistory() {
     return getCurrentAdminKey() === 'ali';
 }
@@ -535,7 +713,11 @@ function renderITStaffProfileGrid() {
         const contactLine = profile.email ? `${profile.phone} · ${profile.email}` : `${profile.phone}`;
         const locationText = profile.location ? profile.location : '-';
         const remarksText = profile.remarks ? profile.remarks : '-';
+<<<<<<< HEAD
         const shiftStatus = profile.shiftStatus || (profile.location ? 'live' : 'standby');
+=======
+        const shiftStatus = profile.shiftStatus || (profile.location ? 'live' : 'offline');
+>>>>>>> 517c3e3 (Include local script.js changes)
         const statusClass = shiftStatus === 'live' ? 'status-live' : shiftStatus === 'offline' ? 'status-oncall' : 'status-standby';
         const statusText = shiftStatus === 'live' ? `Live @ ${profile.location}` : shiftStatus === 'offline' ? 'On call' : 'Standby';
         return `
@@ -570,12 +752,36 @@ function populateITTrackerControls() {
         const profiles = Object.values(getStoredStaffProfiles());
         
         if (currentUser) {
+<<<<<<< HEAD
             // When logged in, only show the current user's profile
             const currentProfile = profiles.find(p => p.id === currentUser);
             if (currentProfile) {
                 staffSelect.innerHTML = `<option value="${currentProfile.id}">${currentProfile.name} (Your Profile)</option>`;
                 staffSelect.value = currentProfile.id;
                 staffSelect.disabled = true; // Prevent changing selection
+=======
+            // If Ali is signed in, allow selecting any active (live) staff to deploy
+            if (currentUser === 'ali') {
+                // Show all staff; enable Ali's own option even if not active so he can select himself
+                const optionHtml = profiles.map(profile => {
+                    const status = profile.shiftStatus || (profile.location ? 'live' : 'offline');
+                    const isActive = status === 'live' || status === 'standby';
+                    const isCurrent = profile.id === currentUser;
+                    const disabledAttr = (!isActive && !isCurrent) ? 'disabled' : '';
+                    const labelSuffix = isCurrent ? ' (you)' : (!isActive ? ' (inactive)' : (status === 'standby' ? ' (standby)' : ''));
+                    return `<option value="${profile.id}" ${disabledAttr}>${profile.name}${labelSuffix}</option>`;
+                }).join('');
+                staffSelect.innerHTML = '<option value="">-- Choose staff --</option>' + optionHtml;
+                staffSelect.disabled = false;
+            } else {
+                // When other users are logged in, only show their own profile
+                const currentProfile = profiles.find(p => p.id === currentUser);
+                if (currentProfile) {
+                    staffSelect.innerHTML = `<option value="${currentProfile.id}">${currentProfile.name} (Your Profile)</option>`;
+                    staffSelect.value = currentProfile.id;
+                    staffSelect.disabled = true; // Prevent changing selection
+                }
+>>>>>>> 517c3e3 (Include local script.js changes)
             }
         } else {
             // When not logged in, show all profiles with a placeholder
@@ -593,6 +799,7 @@ function normalizeSearchKey(value) {
     return String(value || '').trim().toLowerCase();
 }
 
+<<<<<<< HEAD
 function renderHomeBranchList() {
     const container = document.getElementById('homeBranchList');
     if (!container) return;
@@ -632,6 +839,8 @@ function filterHomeBranches(query) {
     renderHomeBranchList();
 }
 
+=======
+>>>>>>> 517c3e3 (Include local script.js changes)
 function updateBranchMarkerVisibility() {
     if (!bhfMap) return;
     const visibleSet = new Set(visibleBranchNames.length > 0 ? visibleBranchNames : Object.keys(BRANCH_LOCATIONS));
@@ -661,7 +870,11 @@ function renderStaffMapMarkers() {
     staffMarkers = {};
 
     const profiles = Object.values(getStoredStaffProfiles()).filter(profile => {
+<<<<<<< HEAD
         const shiftStatus = profile.shiftStatus || (profile.location ? 'live' : 'standby');
+=======
+        const shiftStatus = profile.shiftStatus || (profile.location ? 'live' : 'offline');
+>>>>>>> 517c3e3 (Include local script.js changes)
         return shiftStatus === 'live' && profile.location && BRANCH_LOCATIONS[profile.location];
     });
 
@@ -750,7 +963,11 @@ function renderLiveStaffControl() {
 
         const profiles = Object.values(getStoredStaffProfiles());
         const liveStaff = profiles.filter(profile => {
+<<<<<<< HEAD
             const shiftStatus = profile.shiftStatus || (profile.location ? 'live' : 'standby');
+=======
+            const shiftStatus = profile.shiftStatus || (profile.location ? 'live' : 'offline');
+>>>>>>> 517c3e3 (Include local script.js changes)
             return shiftStatus === 'live' && profile.location && BRANCH_LOCATIONS[profile.location];
         });
 
@@ -843,7 +1060,11 @@ function initializeBHFMap() {
         }
 
         renderStaffMapMarkers();
+<<<<<<< HEAD
         renderHomeBranchList();
+=======
+        populateHomeBranchSelect();
+>>>>>>> 517c3e3 (Include local script.js changes)
         updateBranchMarkerVisibility();
         bhfMap.invalidateSize();
     } catch (e) {
@@ -861,6 +1082,15 @@ window.addEventListener('load', () => {
     }, 1000);
 });
 
+<<<<<<< HEAD
+=======
+window.addEventListener('load', () => {
+    if (isFirebaseConfigured()) {
+        initializeRemoteSync();
+    }
+});
+
+>>>>>>> 517c3e3 (Include local script.js changes)
 function updateBHFMapStaffMarkers() {
     if (!bhfMap) return;
     
@@ -883,7 +1113,10 @@ function updateBHFMapStaffMarkers() {
     });
 
     renderStaffMapMarkers();
+<<<<<<< HEAD
     renderHomeBranchList();
+=======
+>>>>>>> 517c3e3 (Include local script.js changes)
     updateBranchMarkerVisibility();
 }
 
@@ -1022,17 +1255,22 @@ function updateBHFMapStaffMarkers() {
         pages.forEach(p => obs.observe(p, { attributes: true }));
     } catch (e) { console.error(e); }
 
-    // Global click handler: close side menu when clicking outside it
+// Global click handler: close side menu and profile menu when clicking outside them
     try {
         document.addEventListener('click', (ev) => {
-            const menu = document.getElementById('sideMenu');
-            if (!menu || menu.classList.contains('hidden')) return;
             const t = ev.target;
             if (!t || !t.closest) return;
-            // Don't close if click is inside menu or toggle
-            if (t.closest('#sideMenu') || t.closest('#sideMenuToggle')) return;
-            // Close the menu
-            closeSideMenu();
+
+            const menu = document.getElementById('sideMenu');
+            if (menu && !menu.classList.contains('hidden') && !t.closest('#sideMenu') && !t.closest('#sideMenuToggle')) {
+                closeSideMenu();
+            }
+
+            const dropdown = document.getElementById('adminProfileDropdown');
+            const profileBtn = document.getElementById('adminProfileBtn');
+            if (dropdown && !dropdown.classList.contains('hidden') && !t.closest('#adminProfileWrapper')) {
+                closeAdminProfileMenu();
+            }
         });
     } catch (e) { console.error(e); }
 
@@ -1077,20 +1315,38 @@ function closeSideMenu() {
     } catch (e) {}
 }
 
+function closeAdminProfileMenu() {
+    const dropdown = document.getElementById('adminProfileDropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+}
+
 function updateNavVisibility() {
     try {
         const legacyAdminNav = document.getElementById('legacyAdminNavBtn');
+        const adminSummaryBtn = document.getElementById('adminSummaryBtn');
         const homeNavSide = document.getElementById('homeNavBtnSide');
         const branchesNavSide = document.getElementById('branchesNavBtnSide');
         const analysisNavSide = document.getElementById('analysisNavBtnSide');
         const configNavSide = document.getElementById('configNavBtnSide');
         const logoutBtnSide = document.getElementById('logoutBtnSide');
-        const menuToggle = document.getElementById('sideMenuToggle');
+        const adminProfileWrapper = document.getElementById('adminProfileWrapper');
 
         // Hamburger visibility is managed separately by updateHamburgerVisibility().
 
+        // Toggle the header admin controls.
+        if (legacyAdminNav) legacyAdminNav.style.display = adminAuthenticated ? 'none' : '';
+        if (adminSummaryBtn) adminSummaryBtn.classList.toggle('hidden', !adminAuthenticated);
+        if (adminProfileWrapper) {
+            if (adminAuthenticated) {
+                adminProfileWrapper.classList.remove('hidden');
+                updateAdminProfileMenu();
+            } else {
+                adminProfileWrapper.classList.add('hidden');
+                closeAdminProfileMenu();
+            }
+        }
+
         // Always expose the primary navigation entries in the side menu.
-        if (legacyAdminNav) legacyAdminNav.style.display = '';
         if (homeNavSide) homeNavSide.style.display = '';
         if (branchesNavSide) branchesNavSide.style.display = '';
         if (analysisNavSide) analysisNavSide.style.display = '';
@@ -1160,8 +1416,12 @@ function goHome() {
         updateBHFMapStaffMarkers();
         setTimeout(() => { if (bhfMap) bhfMap.invalidateSize(); }, 200);
     }
+<<<<<<< HEAD
     renderHomeBranchList();
     filterHomeBranches(document.getElementById('branchSearchInput')?.value || '');
+=======
+    populateHomeBranchSelect();
+>>>>>>> 517c3e3 (Include local script.js changes)
     // Ensure nav and hamburger visibility reflect the Home view
     try { updateNavVisibility(); updateHamburgerVisibility(); } catch (e) { console.error(e); }
 }
@@ -1194,6 +1454,7 @@ function openAdminPage() {
         target.classList.add("active");
     }
     loadAdminBranchData();
+    renderBranchGridDashboard();
     loadRemarksManagementDirectory();
     closeSideMenu();
     updateNavVisibility();
@@ -1492,9 +1753,15 @@ function updateITTrackerFields() {
         if (ageInput) ageInput.value = '';
         if (photoInput) photoInput.value = '';
         if (statusPill) {
+<<<<<<< HEAD
             statusPill.textContent = 'Standby';
             statusPill.classList.remove('status-pill-live');
             statusPill.classList.add('status-pill-standby');
+=======
+            statusPill.textContent = 'On call';
+            statusPill.classList.remove('status-pill-live');
+            statusPill.classList.add('status-pill-offline');
+>>>>>>> 517c3e3 (Include local script.js changes)
         }
         return;
     }
@@ -1513,6 +1780,7 @@ function updateITTrackerFields() {
     if (photoInput) photoInput.value = '';
     if (passwordInput) passwordInput.value = '';
     if (statusPill) {
+<<<<<<< HEAD
         const shiftStatus = data.shiftStatus || (data.location ? 'live' : 'standby');
         const isLive = shiftStatus === 'live';
         const isOffline = shiftStatus === 'offline';
@@ -1520,6 +1788,16 @@ function updateITTrackerFields() {
         statusPill.classList.toggle('status-pill-live', isLive);
         statusPill.classList.toggle('status-pill-standby', !isLive && !isOffline);
         statusPill.classList.toggle('status-pill-offline', isOffline);
+=======
+        const shiftStatus = data.shiftStatus || (data.location ? 'live' : 'offline');
+        const isLive = shiftStatus === 'live';
+        const isOffline = shiftStatus === 'offline';
+            const isStandby = shiftStatus === 'standby';
+            statusPill.textContent = isLive ? `Live @ ${data.location}` : isOffline ? 'On call' : 'Standby';
+            statusPill.classList.toggle('status-pill-live', isLive);
+            statusPill.classList.toggle('status-pill-offline', isOffline);
+            statusPill.classList.toggle('status-pill-standby', isStandby);
+>>>>>>> 517c3e3 (Include local script.js changes)
     }
     // Restrict profile editing to the signed-in admin's own profile
     const currentUser = adminUserKey || sessionStorage.getItem('adminUserKey');
@@ -1565,8 +1843,13 @@ function startShiftForSelectedStaff() {
         return;
     }
 
+<<<<<<< HEAD
     const currentShiftStatus = selectedProfile.shiftStatus || (selectedProfile.location ? 'live' : 'standby');
     if (currentShiftStatus === 'live' || currentShiftStatus === 'standby') {
+=======
+    const currentShiftStatus = selectedProfile.shiftStatus || (selectedProfile.location ? 'live' : 'offline');
+    if (currentShiftStatus === 'live') {
+>>>>>>> 517c3e3 (Include local script.js changes)
         toastNotice('info', 'Shift Already Active', 'This staff member is already on shift. End the current shift before starting a new one.');
         return;
     }
@@ -1588,7 +1871,11 @@ function startShiftForSelectedStaff() {
     updateITTrackerFields();
     addShiftHistoryEntry('start_shift', selectedStaff, { location: locationValue, remarks: remarksText ? remarksText.value.trim() : '' });
     recordModification('start_shift', selectedStaff, { location: locationValue });
+<<<<<<< HEAD
     toastNotice('success', 'Shift Started', shiftStatus === 'live' ? 'Staff member is now Live on shift.' : 'Staff member is now on Standby.');
+=======
+    toastNotice('success', 'Shift Started', shiftStatus === 'live' ? 'Staff member is now Live on shift.' : 'Staff member is now Standby.');
+>>>>>>> 517c3e3 (Include local script.js changes)
 }
 
 function openITTrackerLogHistoryModal() {
@@ -1658,7 +1945,11 @@ async function saveITTrackerDeployment() {
         return;
     }
 
+<<<<<<< HEAD
     const currentShiftStatus = profile.shiftStatus || (profile.location ? 'live' : 'standby');
+=======
+    const currentShiftStatus = profile.shiftStatus || (profile.location ? 'live' : 'offline');
+>>>>>>> 517c3e3 (Include local script.js changes)
     if (currentShiftStatus === 'offline') {
         toastNotice('warning', 'Offline Staff', 'Cannot save a deployment for an offline staff member. Start the shift first.');
         return;
@@ -2001,7 +2292,11 @@ function openStaffProfileModal(staffKey) {
     if (title) title.textContent = profile.name;
     if (roleEl) roleEl.textContent = profile.role;
     if (statusEl) {
+<<<<<<< HEAD
         const shiftStatus = profile.shiftStatus || (profile.location ? 'live' : 'standby');
+=======
+        const shiftStatus = profile.shiftStatus || (profile.location ? 'live' : 'offline');
+>>>>>>> 517c3e3 (Include local script.js changes)
         statusEl.textContent = shiftStatus === 'live' ? `Live @ ${profile.location}` : shiftStatus === 'offline' ? 'On call' : 'Standby';
     }
     if (summaryEl) summaryEl.textContent = bioText;
@@ -2029,6 +2324,15 @@ function openStaffProfileModal(staffKey) {
         }
     }
 
+<<<<<<< HEAD
+=======
+    // Hide the Admin Login button in the modal when already authenticated
+    try {
+        const adminBtn = document.getElementById('staffAdminLoginBtn');
+        if (adminBtn) adminBtn.style.display = adminAuthenticated ? 'none' : '';
+    } catch (e) {}
+
+>>>>>>> 517c3e3 (Include local script.js changes)
     if (overlay) overlay.classList.remove('hidden');
 }
 
@@ -2465,6 +2769,11 @@ function verifyAdminCredentials() {
         adminUserKey = matchedKey;
         try { sessionStorage.setItem('adminAuthenticated', '1'); sessionStorage.setItem('adminUserKey', adminUserKey); } catch(e) {}
         closeAdminPinModal();
+<<<<<<< HEAD
+=======
+        // If an IT staff profile modal is open, close it when admin signs in
+        try { closeStaffProfileModal(); } catch (e) { /* ignore if modal not present */ }
+>>>>>>> 517c3e3 (Include local script.js changes)
         updateNavVisibility();
         populateITTrackerControls();
         refreshHistoryDeletionControls();
@@ -4331,6 +4640,10 @@ function renderBranchTableLog(branchName) {
                 <td>${renderTempBadge(pc.pcTemp)}</td>
                 <td>${renderTempBadge(pc.processorTemp || pc.pcTemp)}</td>
                 <td><span style="display:inline-flex; align-items:center; gap:4px; background:#e8f3ff; color:#0d47a1; padding:4px 8px; border-radius:4px; font-size:12px; font-weight:600;"><i class="fas fa-user"></i>${pc.username || 'N/A'}</span></td>
+                <td style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                    <button class="edit-btn" type="button" onclick="openFloatingUpdateOverlay('${String(branchName).replace(/'/g, "\\'")}', ${tCount - 1})">Update</button>
+                    <button class="delete-btn" type="button" onclick="openDeletePcOverlay('${String(branchName).replace(/'/g, "\\'")}', ${tCount - 1})">Delete</button>
+                </td>
             </tr>`;
     });
 
@@ -4524,7 +4837,7 @@ function handleNewPcFormSubmission(event) {
     toastNotice('success', 'PC Added', `PC ${pcName} was added to ${branch} with ${health} status.`);
 }
 
-function openFloatingUpdateOverlay() {
+function openFloatingUpdateOverlay(branchName = null, pcIndex = null) {
     const overlay = document.getElementById("floatingUpdateModalOverlay");
     overlay.classList.remove("hidden");
     
@@ -4532,10 +4845,18 @@ function openFloatingUpdateOverlay() {
     mBranch.innerHTML = `<option value="" disabled selected>-- Select Location --</option>`;
     branches.forEach(b => mBranch.innerHTML += `<option value="${b}">${b}</option>`);
     
-    const consoleScope = document.getElementById("adminBranchSelect").value;
-    if (consoleScope) {
-        mBranch.value = consoleScope;
+    const defaultBranch = branchName || document.getElementById("adminBranchSelect")?.value || branches[0];
+    if (defaultBranch) {
+        mBranch.value = defaultBranch;
         populateModalPcSelect();
+    }
+
+    if (pcIndex !== null && pcIndex !== undefined) {
+        const pcSelect = document.getElementById("modalPcSelect");
+        if (pcSelect) {
+            pcSelect.value = String(pcIndex);
+            loadSelectedPcDetailsForEditing();
+        }
     }
 }
 
@@ -4637,7 +4958,7 @@ function commitFloatingPcUpdate() {
     toastNotice('success', 'PC Updated', `PC ${pc.pcName} in ${branch} was successfully updated.`);
 }
 
-function openDeletePcOverlay() {
+function openDeletePcOverlay(branchName = null, pcIndex = null) {
     const overlay = document.getElementById("deletePcModalOverlay");
     overlay.classList.remove("hidden");
 
@@ -4645,9 +4966,14 @@ function openDeletePcOverlay() {
     branchSelect.innerHTML = "";
     branches.forEach(b => branchSelect.innerHTML += `<option value="${b}">${b}</option>`);
 
-    const defaultBranch = document.getElementById("adminBranchSelect").value || branches[0];
+    const defaultBranch = branchName || document.getElementById("adminBranchSelect")?.value || branches[0];
     branchSelect.value = defaultBranch;
     populateDeletePcList();
+
+    if (pcIndex !== null && pcIndex !== undefined) {
+        const checkbox = document.querySelector(`#deletePcListContainer input[name="deletePcCheckbox"][value="${pcIndex}"]`);
+        if (checkbox) checkbox.checked = true;
+    }
 }
 
 function closeDeletePcOverlay() {
